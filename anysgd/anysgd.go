@@ -4,8 +4,6 @@
 // can be applied to other areas as well.
 package anysgd
 
-import "github.com/unixpickle/anydiff"
-
 // SGD performs stochastic gradient descent.
 type SGD struct {
 	// Gradienter is used to compute initial, untransformed
@@ -72,7 +70,7 @@ func (s *SGD) Run(stopper Stopper) {
 		}
 
 		epoch := float64(s.NumProcessed) / float64(s.Samples.Len())
-		scaleGradient(grad, -s.Rater.Rate(epoch))
+		scaleGrad(grad, -s.Rater.Rate(epoch))
 		grad.AddToVars()
 
 		s.NumProcessed += batchSize
@@ -84,12 +82,5 @@ func (s *SGD) batchSize(remaining int) int {
 		return remaining
 	} else {
 		return s.BatchSize
-	}
-}
-
-func scaleGradient(g anydiff.Grad, s float64) {
-	for _, v := range g {
-		g.Scale(v.Creator().MakeNumeric(s))
-		return
 	}
 }

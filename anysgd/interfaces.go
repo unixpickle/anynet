@@ -9,9 +9,16 @@ import "github.com/unixpickle/anydiff"
 // After its first call, a Transformer expects to see
 // gradients of the same form (i.e. containing the same
 // variables).
-// However, a Transformer is not allowed to assume
-// owernship of any gradients it takes as input, as those
-// gradients may be re-used as input at some later time.
+//
+// A Transformer may modify its own input and return the
+// same gradient as an output.
+// However, a Transformer should not modify its input
+// after Transform returns.
+// In other words, the input still belongs to the caller,
+// and the transformer should not retain a reference to
+// the input.
+// If a Transformer needs to cache things relating to its
+// inputs, it must allocate a separate gradient.
 type Transformer interface {
 	Transform(g anydiff.Grad) anydiff.Grad
 }
