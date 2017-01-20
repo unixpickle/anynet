@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/serializer"
 )
 
@@ -23,6 +25,32 @@ func TestActivationSerialize(t *testing.T) {
 	}
 	if newA2 != a2 {
 		t.Error("LogSoftmax failed")
+	}
+}
+
+func TestFCSerialize(t *testing.T) {
+	fc := NewFC(anyvec32.DefaultCreator{}, 7, 5)
+	data, err := serializer.SerializeAny(fc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newFC *FC
+	if err := serializer.DeserializeAny(data, &newFC); err != nil {
+		t.Fatal(err)
+	}
+	if newFC.InCount != fc.InCount || newFC.OutCount != fc.OutCount {
+		t.Fatalf("expected %d->%d but got %d->%d", fc.InCount, fc.OutCount,
+			newFC.InCount, newFC.OutCount)
+	}
+	weightDiff := newFC.Weights.Vector.Copy()
+	weightDiff.Sub(fc.Weights.Vector)
+	if anyvec.AbsMax(weightDiff).(float32) > 1e-3 {
+		t.Error("weight mismatch")
+	}
+	biasDiff := newFC.Biases.Vector.Copy()
+	biasDiff.Sub(fc.Biases.Vector)
+	if anyvec.AbsMax(biasDiff).(float32) > 1e-3 {
+		t.Error("weight mismatch")
 	}
 }
 
