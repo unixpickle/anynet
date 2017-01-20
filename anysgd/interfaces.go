@@ -50,9 +50,6 @@ type SampleList interface {
 	// Len returns the number of samples.
 	Len() int
 
-	// Copy creates a shallow copy of the list.
-	Copy() SampleList
-
 	// Swap swaps two samples.
 	Swap(i, j int)
 
