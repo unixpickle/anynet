@@ -64,18 +64,11 @@ func (g *Gradienter) Gradient(s anysgd.SampleList) anydiff.Grad {
 }
 
 func floatSum(cost anyvec.Vector) float64 {
-	switch data := cost.Data().(type) {
-	case []float32:
-		var sum float32
-		for _, x := range data {
-			sum += x
-		}
+	sum := anyvec.Sum(cost)
+	switch sum := sum.(type) {
+	case float32:
 		return float64(sum)
-	case []float64:
-		var sum float64
-		for _, x := range data {
-			sum += x
-		}
+	case float64:
 		return sum
 	default:
 		return 0
