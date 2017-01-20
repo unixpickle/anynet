@@ -13,6 +13,12 @@ type Gradienter struct {
 	Net    anynet.Layer
 	Cost   anynet.Cost
 	Params []*anydiff.Var
+
+	// After every gradient computation, LastCost is set to
+	// the average cost from the batch.
+	// However, if the numeric type is not float32 or
+	// float64, then it is never set.
+	LastCost float64
 }
 
 // Gradient computes the gradient for the average cost of
@@ -45,17 +51,33 @@ func (g *Gradienter) Gradient(s anysgd.SampleList) anydiff.Grad {
 	desiredRes := anydiff.NewConst(joinedOuts)
 
 	cost := g.Cost.Cost(desiredRes, outRes, l.Len())
-	sum := anydiff.SumCols(&anydiff.Matrix{
-		Data: cost,
-		Rows: 1,
-		Cols: cost.Output().Len(),
-	})
 
 	// Scale the upstream vector so that it's as if we took
 	// the average of the cost.
-	upstream := sum.Output().Creator().MakeVector(1)
+	upstream := cost.Output().Creator().MakeVector(cost.Output().Len())
 	upstream.AddScaler(upstream.Creator().MakeNumeric(1 / float64(l.Len())))
 
 	cost.Propagate(upstream, res)
+	g.LastCost = floatSum(cost.Output())
+
 	return res
+}
+
+func floatSum(cost anyvec.Vector) float64 {
+	switch data := cost.Data().(type) {
+	case []float32:
+		var sum float32
+		for _, x := range data {
+			sum += x
+		}
+		return float64(sum)
+	case []float64:
+		var sum float64
+		for _, x := range data {
+			sum += x
+		}
+		return sum
+	default:
+		return 0
+	}
 }
