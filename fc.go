@@ -80,7 +80,7 @@ func (f *FC) Apply(in anydiff.Res, batch int) anydiff.Res {
 		Rows: batch,
 		Cols: f.InCount,
 	}
-	weighted := anydiff.MatMul(false, true, weightMat, inMat)
+	weighted := anydiff.MatMul(false, true, inMat, weightMat)
 	return anydiff.AddRepeated(weighted.Data, f.Biases)
 }
 
