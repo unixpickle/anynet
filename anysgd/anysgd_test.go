@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/unixpickle/anydiff"
-	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
 )
 
@@ -68,7 +67,8 @@ type testGradienter struct {
 	Y *anydiff.Var
 }
 
-func newTestGradienter(c anyvec.Creator) *testGradienter {
+func newTestGradienter() *testGradienter {
+	c := anyvec32.DefaultCreator{}
 	return &testGradienter{
 		X: anydiff.NewVar(c.MakeVector(1)),
 		Y: anydiff.NewVar(c.MakeVector(1)),
@@ -96,8 +96,22 @@ func (t *testGradienter) Gradient(s SampleList) anydiff.Grad {
 	return grad
 }
 
+func (t *testGradienter) current() (x, y float64) {
+	x32 := t.X.Vector.Data().([]float32)[0]
+	y32 := t.Y.Vector.Data().([]float32)[0]
+	return float64(x32), float64(y32)
+}
+
+func (t *testGradienter) errorMargin() float64 {
+	x, y := t.current()
+	return math.Max(
+		math.Abs(float64(x)-4.0/3),
+		math.Abs(float64(y)+2),
+	)
+}
+
 func TestSGD(t *testing.T) {
-	g := newTestGradienter(anyvec32.DefaultCreator{})
+	g := newTestGradienter()
 	s := &SGD{
 		Gradienter: g,
 		Samples:    newTestSampleList(),
@@ -107,12 +121,8 @@ func TestSGD(t *testing.T) {
 
 	s.Run(&testStopper{callsRemaining: 400000})
 
-	x := g.X.Vector.Data().([]float32)[0]
-	y := g.Y.Vector.Data().([]float32)[0]
-	if math.Abs(float64(x)-4.0/3) > 1e-2 {
-		t.Errorf("bad x value: %f", x)
-	}
-	if math.Abs(float64(y)+2) > 1e-2 {
-		t.Errorf("bad y value: %f", y)
+	if g.errorMargin() > 1e-2 {
+		x, y := g.current()
+		t.Errorf("bad solution: %f, %f", x, y)
 	}
 }

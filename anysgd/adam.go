@@ -70,7 +70,7 @@ func (a *Adam) updateMoments(grad anydiff.Grad) {
 		for variable, vec := range grad {
 			momentVec := a.firstMoment[variable]
 			v := vec.Copy()
-			v.Scale(keepRate)
+			v.Scale(vec.Creator().MakeNumeric(keepRate))
 			momentVec.Add(v)
 		}
 	}
