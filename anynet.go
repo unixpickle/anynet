@@ -16,6 +16,14 @@ func init() {
 	serializer.RegisterTypedDeserializer(n.SerializerType(), DeserializeNet)
 }
 
+// A Parameterizer is anything with learnable variables.
+//
+// The parameters of a Parameterizer must be in the same
+// order every time Parameters() is called.
+type Parameterizer interface {
+	Parameters() []*anydiff.Var
+}
+
 // A Layer is a composable computation unit for use in a
 // neural network.
 // In a feed-forward network, each layer's output is fed
@@ -57,6 +65,21 @@ func (n Net) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 		in = l.Apply(in, batchSize)
 	}
 	return in
+}
+
+// Parameters returns the parameters of the network.
+//
+// Every layer which implements Parameterizer will have
+// its parameters added to the slice.
+// Parameters are ordered from the first layer onwards.
+func (n Net) Parameters() []*anydiff.Var {
+	var res []*anydiff.Var
+	for _, x := range n {
+		if p, ok := x.(Parameterizer); ok {
+			res = append(res, p.Parameters()...)
+		}
+	}
+	return res
 }
 
 // SerializerType returns the unique ID used to serialize
