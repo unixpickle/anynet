@@ -58,7 +58,7 @@ func (g *Gradienter) Gradient(s anysgd.SampleList) anydiff.Grad {
 	upstream.AddScaler(upstream.Creator().MakeNumeric(1 / float64(l.Len())))
 
 	cost.Propagate(upstream, res)
-	g.LastCost = floatSum(cost.Output())
+	g.LastCost = floatSum(cost.Output()) / float64(l.Len())
 
 	return res
 }
