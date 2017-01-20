@@ -1,44 +1,95 @@
 // Package anysgd provides tools for Stochastic Gradient
 // Descent.
 // It is intended to be used for Machine Learning, but it
-// can be applied to other things as well.
+// can be applied to other areas as well.
 package anysgd
 
 import "github.com/unixpickle/anydiff"
 
-// A Transformer transforms gradients, perhaps by applying
-// some form of pre-conditioning.
-//
-// After its first call, a Transformer expects to see
-// gradients of the same form (i.e. containing the same
-// variables).
-// However, a Transformer is not allowed to assume
-// owernship of any gradients it takes as input, as those
-// gradients may be re-used as inputs at some later time.
-type Transformer interface {
-	Transform(g anydiff.Grad) anydiff.Grad
+// SGD performs stochastic gradient descent.
+type SGD struct {
+	// Gradienter is used to compute initial, untransformed
+	// gradients for each mini-batch.
+	Gradienter Gradienter
+
+	// Transformer, if non-nil, is used to transform each
+	// gradient before the step.
+	Transformer Transformer
+
+	// Samples is the list of training samples to use for
+	// training.
+	// It will be shuffled and re-shuffled as needed.
+	//
+	// The list may not be empty.
+	Samples SampleList
+
+	// Rater determines the learning rate for each step.
+	Rater Rater
+
+	// StatusFunc, if non-nil, is called before every
+	// iteration with the next mini-batch.
+	StatusFunc func(batch SampleList)
+
+	// BatchSize is the mini-batch size.
+	// If it is 0, then the entire sample list is used at
+	// every iteration.
+	BatchSize int
+
+	// NumProcessed keeps track of the number of samples that
+	// have been passed to Gradienter so far.
+	// It is used to compute the epoch for Rater.
+	// Most of the time, this should be initialized to 0.
+	NumProcessed int
 }
 
-// A Gradienter computes a gradient for a list of samples.
-//
-// The same gradient instance may be re-used by successive
-// calls to Gradient.
-type Gradienter interface {
-	Gradient(s SampleList) anydiff.Grad
+// Run runs SGD until s indicates to stop.
+func (s *SGD) Run(stopper Stopper) {
+	if s.Samples.Len() == 0 {
+		panic("cannot run SGD with empty sample list")
+	}
+	idx := s.Samples.Len()
+	for !stopper.Done() {
+		remaining := s.Samples.Len() - idx
+		if remaining == 0 {
+			Shuffle(s.Samples)
+			idx = 0
+			remaining = s.Samples.Len()
+		}
+		batchSize := s.batchSize(remaining)
+		batch := s.Samples.Slice(idx, idx+batchSize)
+		idx += batchSize
+
+		if s.StatusFunc != nil {
+			s.StatusFunc(batch)
+			if stopper.Done() {
+				break
+			}
+		}
+
+		grad := s.Gradienter.Gradient(batch)
+		if s.Transformer != nil {
+			grad = s.Transformer.Transform(grad)
+		}
+
+		epoch := float64(s.NumProcessed) / float64(s.Samples.Len())
+		scaleGradient(grad, -s.Rater.Rate(epoch))
+		grad.AddToVars()
+
+		s.NumProcessed += batchSize
+	}
 }
 
-// A SampleList represents a list of training samples.
-type SampleList interface {
-	// Len returns the number of samples.
-	Len() int
+func (s *SGD) batchSize(remaining int) int {
+	if s.BatchSize == 0 || s.BatchSize > remaining {
+		return remaining
+	} else {
+		return s.BatchSize
+	}
+}
 
-	// Copy creates a shallow copy of the list.
-	Copy() SampleList
-
-	// Swap swaps two samples.
-	Swap(i, j int)
-
-	// Slice generates a shallow copy of a subset of the
-	// list.
-	Slice(i, j int) SampleList
+func scaleGradient(g anydiff.Grad, s float64) {
+	for _, v := range g {
+		g.Scale(v.Creator().MakeNumeric(s))
+		return
+	}
 }
