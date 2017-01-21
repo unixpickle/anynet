@@ -115,8 +115,8 @@ func (l *LSTM) Step(s State, in anyvec.Vector) Res {
 	remGate := l.Remember.Apply(res.LastOutPool, res.InPool, res.LastInternalPool)
 
 	res.InternalRes = anydiff.Add(
-		anydiff.Scale(inVal, inGate),
-		anydiff.Scale(res.LastInternalPool, remGate),
+		anydiff.Mul(inVal, inGate),
+		anydiff.Mul(res.LastInternalPool, remGate),
 	)
 	res.InternalPool = anydiff.NewVar(res.InternalRes.Output())
 
@@ -323,7 +323,7 @@ func (l *lstmRes) Propagate(u anyvec.Vector, s StateGrad, g anydiff.Grad) (anyve
 			PresentMap: l.OutState.Present(),
 		},
 		internal: &VecState{
-			Vector:     g[l.InternalPool],
+			Vector:     g[l.LastInternalPool],
 			PresentMap: l.OutState.Present(),
 		},
 	}
