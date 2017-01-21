@@ -27,8 +27,8 @@ func DeserializeLayerBlock(d []byte) (*LayerBlock, error) {
 	return &LayerBlock{Layer: n[0]}, nil
 }
 
-// State creates an empty start state.
-func (l *LayerBlock) State(n int) State {
+// Start creates an empty start state.
+func (l *LayerBlock) Start(n int) State {
 	pres := make([]bool, n)
 	for i := range pres {
 		pres[i] = true
