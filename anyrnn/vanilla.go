@@ -75,8 +75,8 @@ func NewVanilla(c anyvec.Creator, in, out int, activation anynet.Layer) *Vanilla
 
 	anyvec.Rand(res.StateWeights.Vector, anyvec.Normal, nil)
 	anyvec.Rand(res.InputWeights.Vector, anyvec.Normal, nil)
-	res.StateWeights.Vector.Scale(1 / math.Sqrt(float64(out)))
-	res.InputWeights.Vector.Scale(1 / math.Sqrt(float64(in)))
+	res.StateWeights.Vector.Scale(c.MakeNumeric(1 / math.Sqrt(float64(out))))
+	res.InputWeights.Vector.Scale(c.MakeNumeric(1 / math.Sqrt(float64(in))))
 
 	return res
 }
@@ -94,8 +94,8 @@ func NewVanillaZero(c anyvec.Creator, in, out int, activation anynet.Layer) *Van
 	}
 }
 
-// State generates an initial state.
-func (v *Vanilla) State(n int) State {
+// Start generates an initial state.
+func (v *Vanilla) Start(n int) State {
 	return NewVecState(v.StartState.Vector, n)
 }
 
