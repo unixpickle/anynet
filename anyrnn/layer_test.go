@@ -12,28 +12,13 @@ import (
 )
 
 func TestLayerBlock(t *testing.T) {
-	inVars := []*anydiff.Var{}
-	inBatches := []*anyseq.ResBatch{}
-	for i := 0; i < 3; i++ {
-		vec := anyvec32.MakeVector(9)
-		anyvec.Rand(vec, anyvec.Normal, nil)
-		v := anydiff.NewVar(vec)
-		batch := &anyseq.ResBatch{
-			Packed:  v,
-			Present: []bool{true, true, true},
-		}
-		inVars = append(inVars, v)
-		inBatches = append(inBatches, batch)
-	}
-	inSeq := anyseq.ResSeq(inBatches)
-
+	inSeq, inVars := randomTestSequence(3)
 	block := &LayerBlock{
 		Layer: anynet.Net{
 			anynet.NewFC(anyvec32.CurrentCreator(), 3, 2),
 			anynet.Tanh,
 		},
 	}
-
 	if len(block.Parameters()) != 2 {
 		t.Errorf("expected 2 parameters, but got %d", len(block.Parameters()))
 	}
@@ -44,4 +29,28 @@ func TestLayerBlock(t *testing.T) {
 		V: append(inVars, block.Parameters()...),
 	}
 	checker.FullCheck(t)
+}
+
+func randomTestSequence(inSize int) (anyseq.Seq, []*anydiff.Var) {
+	inVars := []*anydiff.Var{}
+	inBatches := []*anyseq.ResBatch{}
+
+	presents := [][]bool{{true, true, true}, {true, false, true}}
+	numPres := []int{3, 2}
+	chunkLengths := []int{2, 3}
+
+	for chunkIdx, pres := range presents {
+		for i := 0; i < chunkLengths[chunkIdx]; i++ {
+			vec := anyvec32.MakeVector(inSize * numPres[chunkIdx])
+			anyvec.Rand(vec, anyvec.Normal, nil)
+			v := anydiff.NewVar(vec)
+			batch := &anyseq.ResBatch{
+				Packed:  v,
+				Present: pres,
+			}
+			inVars = append(inVars, v)
+			inBatches = append(inBatches, batch)
+		}
+	}
+	return anyseq.ResSeq(inBatches), inVars
 }
