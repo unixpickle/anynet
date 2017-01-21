@@ -6,7 +6,13 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/serializer"
 )
+
+func init() {
+	var l LayerBlock
+	serializer.RegisterTypedDeserializer(l.SerializerType(), DeserializeLayerBlock)
+}
 
 // A LayerBlock is a stateless Block that applies a
 // feed-forward neural network (or a layer thereof) to its
