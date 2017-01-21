@@ -6,6 +6,7 @@ import (
 )
 
 type mapRes struct {
+	InitPres PresentMap
 	In       anyseq.Seq
 	Out      []*anyseq.Batch
 	BlockRes []Res
@@ -21,9 +22,12 @@ func Map(s anyseq.Seq, b Block) anyseq.Seq {
 		return &mapRes{}
 	}
 
-	n := inSteps[0].NumPresent()
-	state := b.Start(n)
-	res := &mapRes{In: s, Block: b, V: s.Vars()}
+	state := b.Start(len(inSteps[0].Present))
+	initPres := state.Present()
+	if inSteps[0].NumPresent() != len(inSteps[0].Present) {
+		state = state.Reduce(inSteps[0].Present)
+	}
+	res := &mapRes{InitPres: initPres, In: s, Block: b, V: s.Vars()}
 
 	for _, x := range inSteps {
 		if x.NumPresent() != state.Present().NumPresent() {
@@ -36,6 +40,7 @@ func Map(s anyseq.Seq, b Block) anyseq.Seq {
 			Packed:  step.Output(),
 			Present: x.Present,
 		})
+		state = step.State()
 	}
 
 	return res
@@ -76,6 +81,9 @@ func (m *mapRes) Propagate(u []*anyseq.Batch, g anydiff.Grad) {
 	}
 
 	if upState != nil {
+		if m.InitPres.NumPresent() != upState.Present().NumPresent() {
+			upState = upState.Expand(m.InitPres)
+		}
 		m.Block.PropagateStart(upState, g)
 	}
 
