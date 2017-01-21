@@ -1,9 +1,18 @@
 package anyrnn
 
 import (
+	"fmt"
+
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/serializer"
 )
+
+func init() {
+	var s Stack
+	serializer.RegisterTypedDeserializer(s.SerializerType(), DeserializeStack)
+}
 
 // A Stack is a meta-Block for composing Blocks.
 // In a Stack, the first Block's output is fed as input to
@@ -11,6 +20,23 @@ import (
 //
 // An empty Stack is invalid.
 type Stack []Block
+
+// DeserializeStack deserializes a Stack.
+func DeserializeStack(d []byte) (Stack, error) {
+	blockSlice, err := serializer.DeserializeSlice(d)
+	if err != nil {
+		return nil, err
+	}
+	res := make(Stack, len(blockSlice))
+	for i, x := range blockSlice {
+		if b, ok := x.(Block); ok {
+			res[i] = b
+		} else {
+			return nil, fmt.Errorf("type is not a Block: %T", x)
+		}
+	}
+	return res, nil
+}
 
 // Start produces a start state.
 func (s Stack) Start(n int) State {
@@ -42,6 +68,38 @@ func (s Stack) Step(st State, in anyvec.Vector) Res {
 		res.V = anydiff.MergeVarSets(res.V, blockRes.Vars())
 	}
 	return res
+}
+
+// Parameters gathers the parameters of all the sub-blocks
+// that implement anynet.Parameterizer.
+func (s Stack) Parameters() []*anydiff.Var {
+	var res []*anydiff.Var
+	for _, x := range s {
+		if p, ok := x.(anynet.Parameterizer); ok {
+			res = append(res, p.Parameters()...)
+		}
+	}
+	return res
+}
+
+// SerializerType returns the unique ID used to serialize
+// a Stack with the serializer package.
+func (s Stack) SerializerType() string {
+	return "github.com/unixpickle/anynet/anyrnn.Stack"
+}
+
+// Serialize serializes the Stack.
+// It only works if every child is a Serializer.
+func (s Stack) Serialize() ([]byte, error) {
+	var res []serializer.Serializer
+	for _, x := range s {
+		if ser, ok := x.(serializer.Serializer); ok {
+			res = append(res, ser)
+		} else {
+			return nil, fmt.Errorf("not a serializer: %T", x)
+		}
+	}
+	return serializer.SerializeSlice(res)
 }
 
 func (s Stack) assertNonEmpty() {
