@@ -19,26 +19,33 @@ func init() {
 
 // LSTM is a long short-term memory block.
 type LSTM struct {
-	InValue   *LSTMGate
-	In        *LSTMGate
-	Remember  *LSTMGate
-	Output    *LSTMGate
-	InitState *anydiff.Var
+	InValue      *LSTMGate
+	In           *LSTMGate
+	Remember     *LSTMGate
+	Output       *LSTMGate
+	OutSquash    anynet.Layer
+	InitLastOut  *anydiff.Var
+	InitInternal *anydiff.Var
 }
 
 // DeserializeLSTM deserializes an LSTM.
 func DeserializeLSTM(d []byte) (*LSTM, error) {
 	var inVal, in, rem, out *LSTMGate
-	var initState *anyvecsave.S
-	if err := serializer.DeserializeAny(d, &inVal, &in, &rem, &out, &initState); err != nil {
+	var outSquash anynet.Layer
+	var initLast, initInt *anyvecsave.S
+	err := serializer.DeserializeAny(d, &inVal, &in, &rem, &out, &outSquash,
+		&initLast, &initInt)
+	if err != nil {
 		return nil, err
 	}
 	return &LSTM{
-		InValue:   inVal,
-		In:        in,
-		Remember:  rem,
-		Output:    out,
-		InitState: anydiff.NewVar(initState.Vector),
+		InValue:      inVal,
+		In:           in,
+		Remember:     rem,
+		Output:       out,
+		OutSquash:    outSquash,
+		InitLastOut:  anydiff.NewVar(initLast.Vector),
+		InitInternal: anydiff.NewVar(initInt.Vector),
 	}, nil
 }
 
@@ -48,11 +55,13 @@ func DeserializeLSTM(d []byte) (*LSTM, error) {
 // remember things.
 func NewLSTM(c anyvec.Creator, in, state int) *LSTM {
 	res := &LSTM{
-		InValue:   NewLSTMGate(c, in, state, anynet.Tanh),
-		In:        NewLSTMGate(c, in, state, anynet.Sigmoid),
-		Remember:  NewLSTMGate(c, in, state, anynet.Sigmoid),
-		Output:    NewLSTMGate(c, in, state, anynet.Sigmoid),
-		InitState: anydiff.NewVar(c.MakeVector(state)),
+		InValue:      NewLSTMGate(c, in, state, anynet.Tanh),
+		In:           NewLSTMGate(c, in, state, anynet.Sigmoid),
+		Remember:     NewLSTMGate(c, in, state, anynet.Sigmoid),
+		Output:       NewLSTMGate(c, in, state, anynet.Sigmoid),
+		OutSquash:    anynet.Tanh,
+		InitLastOut:  anydiff.NewVar(c.MakeVector(state)),
+		InitInternal: anydiff.NewVar(c.MakeVector(state)),
 	}
 	res.Remember.Biases.Vector.AddScaler(c.MakeNumeric(lstmRememberBias))
 	return res
@@ -61,17 +70,79 @@ func NewLSTM(c anyvec.Creator, in, state int) *LSTM {
 // NewLSTMZero creates a zero'd LSTM.
 func NewLSTMZero(c anyvec.Creator, in, state int) *LSTM {
 	return &LSTM{
-		InValue:   NewLSTMGateZero(c, in, state, anynet.Tanh),
-		In:        NewLSTMGateZero(c, in, state, anynet.Sigmoid),
-		Remember:  NewLSTMGateZero(c, in, state, anynet.Sigmoid),
-		Output:    NewLSTMGateZero(c, in, state, anynet.Sigmoid),
-		InitState: anydiff.NewVar(c.MakeVector(state)),
+		InValue:      NewLSTMGateZero(c, in, state, anynet.Tanh),
+		In:           NewLSTMGateZero(c, in, state, anynet.Sigmoid),
+		Remember:     NewLSTMGateZero(c, in, state, anynet.Sigmoid),
+		Output:       NewLSTMGateZero(c, in, state, anynet.Sigmoid),
+		OutSquash:    anynet.Tanh,
+		InitLastOut:  anydiff.NewVar(c.MakeVector(state)),
+		InitInternal: anydiff.NewVar(c.MakeVector(state)),
 	}
+}
+
+// Start returns the start state for the RNN.
+func (l *LSTM) Start(n int) State {
+	return &lstmState{
+		lastOut:  NewVecState(l.InitLastOut.Output(), n),
+		internal: NewVecState(l.InitInternal.Output(), n),
+	}
+}
+
+// PropagateStart propagates through the start state.
+func (l *LSTM) PropagateStart(s StateGrad, g anydiff.Grad) {
+	ls := s.(*lstmState)
+	ls.lastOut.PropagateStart(l.InitLastOut, g)
+	ls.internal.PropagateStart(l.InitInternal, g)
+}
+
+// Step performs one timestep.
+func (l *LSTM) Step(s State, in anyvec.Vector) Res {
+	ls := s.(*lstmState)
+
+	res := &lstmRes{
+		V:                anydiff.VarSet{},
+		InPool:           anydiff.NewVar(in),
+		LastOutPool:      anydiff.NewVar(ls.lastOut.Vector),
+		LastInternalPool: anydiff.NewVar(ls.internal.Vector),
+	}
+
+	for _, p := range l.Parameters() {
+		res.V.Add(p)
+	}
+
+	inVal := l.InValue.Apply(res.LastOutPool, res.InPool, res.LastInternalPool)
+	inGate := l.In.Apply(res.LastOutPool, res.InPool, res.LastInternalPool)
+	remGate := l.Remember.Apply(res.LastOutPool, res.InPool, res.LastInternalPool)
+
+	res.InternalRes = anydiff.Add(
+		anydiff.Scale(inVal, inGate),
+		anydiff.Scale(res.LastInternalPool, remGate),
+	)
+	res.InternalPool = anydiff.NewVar(res.InternalRes.Output())
+
+	// Peephole of output gate gets to see the new internals.
+	outGate := l.Output.Apply(res.LastOutPool, res.InPool, res.InternalPool)
+	squashedOut := l.OutSquash.Apply(res.InternalPool, s.Present().NumPresent())
+
+	res.OutputRes = anydiff.Mul(outGate, squashedOut)
+	res.OutState = &lstmState{
+		lastOut: &VecState{
+			Vector:     res.OutputRes.Output(),
+			PresentMap: s.Present(),
+		},
+		internal: &VecState{
+			Vector:     res.InternalRes.Output(),
+			PresentMap: s.Present(),
+		},
+	}
+	res.OutVec = res.OutputRes.Output()
+
+	return res
 }
 
 // Parameters returns the parameters of the block.
 func (l *LSTM) Parameters() []*anydiff.Var {
-	res := []*anydiff.Var{l.InitState}
+	res := []*anydiff.Var{l.InitLastOut, l.InitInternal}
 	for _, g := range []*LSTMGate{l.InValue, l.In, l.Remember, l.Output} {
 		res = append(res, g.Parameters()...)
 	}
@@ -86,8 +157,9 @@ func (l *LSTM) SerializerType() string {
 
 // Serialize serializes the LSTM.
 func (l *LSTM) Serialize() ([]byte, error) {
-	return serializer.SerializeAny(l.InValue, l.In, l.Remember, l.Output,
-		&anyvecsave.S{Vector: l.InitState.Vector})
+	return serializer.SerializeAny(l.InValue, l.In, l.Remember, l.Output, l.OutSquash,
+		&anyvecsave.S{Vector: l.InitLastOut.Vector},
+		&anyvecsave.S{Vector: l.InitInternal.Vector})
 }
 
 // An LSTMGate computes a value based on the previous
@@ -140,6 +212,19 @@ func NewLSTMGateZero(c anyvec.Creator, in, state int, activation anynet.Layer) *
 	}
 }
 
+// Apply applies the gate.
+func (l *LSTMGate) Apply(state, input, internal anydiff.Res) anydiff.Res {
+	outCount := l.Biases.Vector.Len()
+	inCount := l.InputWeights.Vector.Len() / outCount
+	weighted1 := applyWeights(outCount, outCount, l.StateWeights, state)
+	weighted2 := applyWeights(inCount, outCount, l.InputWeights, input)
+	peep := anydiff.ScaleRepeated(internal, l.Peephole)
+	return l.Activation.Apply(anydiff.Add(
+		anydiff.Add(weighted1, weighted2),
+		anydiff.AddRepeated(peep, l.Biases),
+	), state.Output().Len()/outCount)
+}
+
 // Parameters returns the parameters of the gate.
 func (l *LSTMGate) Parameters() []*anydiff.Var {
 	return []*anydiff.Var{l.StateWeights, l.InputWeights, l.Peephole, l.Biases}
@@ -158,4 +243,95 @@ func (l *LSTMGate) Serialize() ([]byte, error) {
 	p := &anyvecsave.S{Vector: l.Peephole.Vector}
 	b := &anyvecsave.S{Vector: l.Biases.Vector}
 	return serializer.SerializeAny(sw, iw, p, b, l.Activation)
+}
+
+type lstmState struct {
+	lastOut  *VecState
+	internal *VecState
+}
+
+func (l *lstmState) Present() PresentMap {
+	return l.lastOut.Present()
+}
+
+func (l *lstmState) Reduce(p PresentMap) State {
+	return &lstmState{
+		lastOut:  l.lastOut.Reduce(p).(*VecState),
+		internal: l.internal.Reduce(p).(*VecState),
+	}
+}
+
+func (l *lstmState) Expand(p PresentMap) StateGrad {
+	return &lstmState{
+		lastOut:  l.lastOut.Expand(p).(*VecState),
+		internal: l.internal.Expand(p).(*VecState),
+	}
+}
+
+type lstmRes struct {
+	OutState *lstmState
+	OutVec   anyvec.Vector
+	V        anydiff.VarSet
+
+	InternalRes anydiff.Res
+	OutputRes   anydiff.Res
+
+	InPool           *anydiff.Var
+	LastOutPool      *anydiff.Var
+	LastInternalPool *anydiff.Var
+	InternalPool     *anydiff.Var
+}
+
+func (l *lstmRes) State() State {
+	return l.OutState
+}
+
+func (l *lstmRes) Output() anyvec.Vector {
+	return l.OutVec
+}
+
+func (l *lstmRes) Vars() anydiff.VarSet {
+	return l.V
+}
+
+func (l *lstmRes) Propagate(u anyvec.Vector, s StateGrad, g anydiff.Grad) (anyvec.Vector,
+	StateGrad) {
+	for _, p := range l.pools() {
+		g[p] = p.Vector.Creator().MakeVector(p.Vector.Len())
+	}
+	defer func() {
+		for _, p := range l.pools() {
+			delete(g, p)
+		}
+	}()
+
+	if s != nil {
+		u.Add(s.(*lstmState).lastOut.Vector)
+	}
+	l.OutputRes.Propagate(u, g)
+	internalUpstream := g[l.InternalPool]
+	delete(g, l.InternalPool)
+
+	if s != nil {
+		internalUpstream.Add(s.(*lstmState).internal.Vector)
+	}
+	l.InternalRes.Propagate(internalUpstream, g)
+
+	downState := &lstmState{
+		lastOut: &VecState{
+			Vector:     g[l.LastOutPool],
+			PresentMap: l.OutState.Present(),
+		},
+		internal: &VecState{
+			Vector:     g[l.InternalPool],
+			PresentMap: l.OutState.Present(),
+		},
+	}
+	inputDown := g[l.InPool]
+
+	return inputDown, downState
+}
+
+func (l *lstmRes) pools() []*anydiff.Var {
+	return []*anydiff.Var{l.InPool, l.LastOutPool, l.LastInternalPool, l.InternalPool}
 }
