@@ -119,6 +119,7 @@ func (v *Vanilla) Step(s State, in anyvec.Vector) Res {
 	biased := anydiff.AddRepeated(sum, v.Biases)
 	res.Out = v.Activation.Apply(biased, s.Present().NumPresent())
 	res.OutState = &VecState{Vector: res.Out.Output(), PresentMap: s.Present()}
+	res.V = anydiff.MergeVarSets(res.V, res.Out.Vars())
 
 	return res
 }
