@@ -1,0 +1,85 @@
+package anyrnn
+
+import (
+	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anydiff/anyseq"
+)
+
+type mapRes struct {
+	In       anyseq.Seq
+	Out      []*anyseq.Batch
+	BlockRes []Res
+	Block    Block
+	V        anydiff.VarSet
+}
+
+// Map maps a Block over an input sequence batch, giving
+// an output sequence batch.
+func Map(s anyseq.Seq, b Block) anyseq.Seq {
+	inSteps := s.Output()
+	if len(inSteps) == 0 {
+		return &mapRes{}
+	}
+
+	n := inSteps[0].NumPresent()
+	state := b.Start(n)
+	res := &mapRes{In: s, Block: b, V: s.Vars()}
+
+	for _, x := range inSteps {
+		if x.NumPresent() != state.Present().NumPresent() {
+			state = state.Reduce(x.Present)
+		}
+		step := b.Step(state, x.Packed)
+		res.BlockRes = append(res.BlockRes, step)
+		res.V = anydiff.MergeVarSets(res.V, step.Vars())
+		res.Out = append(res.Out, &anyseq.Batch{
+			Packed:  step.Output(),
+			Present: x.Present,
+		})
+	}
+
+	return res
+}
+
+func (m *mapRes) Output() []*anyseq.Batch {
+	return m.Out
+}
+
+func (m *mapRes) Vars() anydiff.VarSet {
+	return m.V
+}
+
+func (m *mapRes) Propagate(u []*anyseq.Batch, g anydiff.Grad) {
+	if len(u) == 0 {
+		return
+	}
+
+	var downstream []*anyseq.Batch
+	if g.Intersects(m.In.Vars()) {
+		downstream = make([]*anyseq.Batch, len(u))
+	}
+
+	var upState StateGrad
+	for i := len(m.BlockRes) - 1; i >= 0; i-- {
+		blockRes := m.BlockRes[i]
+		if upState != nil {
+			newPres := blockRes.State().Present()
+			if newPres.NumPresent() != upState.Present().NumPresent() {
+				upState = upState.Expand(newPres)
+			}
+		}
+		down, downState := blockRes.Propagate(u[i].Packed, upState, g)
+		if downstream != nil {
+			downstream[i] = &anyseq.Batch{Packed: down, Present: u[i].Present}
+		}
+		upState = downState
+	}
+
+	if upState != nil {
+		m.Block.PropagateStart(upState, g)
+	}
+
+	if downstream != nil {
+		m.In.Propagate(downstream, g)
+	}
+}
