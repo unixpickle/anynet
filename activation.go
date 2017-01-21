@@ -19,6 +19,7 @@ type Activation int
 const (
 	Tanh Activation = iota
 	LogSoftmax
+	Sigmoid
 )
 
 // DeserializeActivation deserializes an Activation.
@@ -27,7 +28,7 @@ func DeserializeActivation(d []byte) (Activation, error) {
 		return 0, fmt.Errorf("data length (%d) should be 1", len(d))
 	}
 	a := Activation(d[0])
-	if a > LogSoftmax {
+	if a > Sigmoid {
 		return 0, fmt.Errorf("unknown activation ID: %d", a)
 	}
 	return a, nil
@@ -44,6 +45,8 @@ func (a Activation) Apply(in anydiff.Res, n int) anydiff.Res {
 			panic("batch size must divide input length")
 		}
 		return anydiff.LogSoftmax(in, inLen/n)
+	case Sigmoid:
+		return anydiff.Sigmoid(in)
 	default:
 		panic(fmt.Sprintf("unknown activation: %d", a))
 	}
