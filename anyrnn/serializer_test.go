@@ -31,6 +31,19 @@ func TestVanillaSerialize(t *testing.T) {
 	testSerialize(t, v)
 }
 
+func TestLSTMGateSerialize(t *testing.T) {
+	g := NewLSTMGate(anyvec32.CurrentCreator(), 3, 2, anynet.Sigmoid)
+
+	// Make sure the biases are different than the init state.
+	g.Biases.Vector.AddScaler(float32(1))
+
+	testSerialize(t, g)
+}
+
+func TestLSTMSerialize(t *testing.T) {
+	testSerialize(t, NewLSTM(anyvec32.CurrentCreator(), 3, 2))
+}
+
 func testSerialize(t *testing.T, obj serializer.Serializer) {
 	data, err := serializer.SerializeWithType(obj)
 	if err != nil {
