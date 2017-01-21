@@ -130,7 +130,7 @@ func (s *stackRes) Propagate(u anyvec.Vector, sg StateGrad, g anydiff.Grad) (any
 	StateGrad) {
 	downVec := u
 	downStates := make(stackGrad, len(s.Reses))
-	for i := len(s.Reses); i >= 0; i-- {
+	for i := len(s.Reses) - 1; i >= 0; i-- {
 		var stateUpstream StateGrad
 		if sg != nil {
 			stateUpstream = sg.(stackGrad)[i]
