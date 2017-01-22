@@ -64,14 +64,9 @@ func (a *Adam) updateMoments(grad anydiff.Grad) {
 		scaleGrad(a.firstMoment, 1-a.decayRate(1))
 	} else {
 		decayRate := a.decayRate(1)
-		scaleGrad(a.firstMoment, decayRate)
-
-		keepRate := 1 - decayRate
 		for variable, vec := range grad {
 			momentVec := a.firstMoment[variable]
-			v := vec.Copy()
-			v.Scale(vec.Creator().MakeNumeric(keepRate))
-			momentVec.Add(v)
+			rollingAverage(momentVec, vec.Copy(), decayRate)
 		}
 	}
 
@@ -83,14 +78,10 @@ func (a *Adam) updateMoments(grad anydiff.Grad) {
 		scaleGrad(a.secondMoment, 1-a.decayRate(2))
 	} else {
 		decayRate := a.decayRate(2)
-		scaleGrad(a.secondMoment, decayRate)
-		keepRate := 1 - decayRate
 		for variable, vec := range grad {
 			momentVec := a.secondMoment[variable]
-			v := vec.Copy()
-			anyvec.Pow(v, v.Creator().MakeNumeric(2))
-			v.Scale(v.Creator().MakeNumeric(keepRate))
-			momentVec.Add(v)
+			anyvec.Pow(vec, vec.Creator().MakeNumeric(2))
+			rollingAverage(momentVec, vec, decayRate)
 		}
 	}
 }
@@ -111,4 +102,15 @@ func (a *Adam) damping() float64 {
 	} else {
 		return adamDefaultDamping
 	}
+}
+
+// rollingAverage computes
+//
+//     oldVec := oldVec + (1-decayRate)*(newVec - oldVec)
+//
+// It overwrites newVec in the process.
+func rollingAverage(oldVec, newVec anyvec.Vector, decayRate float64) {
+	newVec.Sub(oldVec)
+	newVec.Scale(newVec.Creator().MakeNumeric(1 - decayRate))
+	oldVec.Add(newVec)
 }
