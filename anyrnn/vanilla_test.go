@@ -78,39 +78,14 @@ func TestVanillaOutput(t *testing.T) {
 }
 
 func TestVanillaProp(t *testing.T) {
-	block := NewVanilla(anyvec32.CurrentCreator(), 2, 3, anynet.Tanh)
-	inVars := []*anydiff.Var{
-		anydiff.NewVar(anyvec32.MakeVectorData([]float32{
-			1.000009682963246, 0.887353762043918,
-			1.390648176281434, -0.709610839726816,
-		})),
-		anydiff.NewVar(anyvec32.MakeVectorData([]float32{
-			1.46841279925354, -1.6971931951273,
-		})),
-		anydiff.NewVar(anyvec32.MakeVectorData([]float32{
-			-1.567780854880226, 0.639114679829077,
-		})),
-	}
-	seq := anyseq.ResSeq([]*anyseq.ResBatch{
-		{
-			Packed:  inVars[0],
-			Present: []bool{true, true, false},
-		},
-		{
-			Packed:  inVars[1],
-			Present: []bool{false, true, false},
-		},
-		{
-			Packed:  inVars[2],
-			Present: []bool{false, true, false},
-		},
-	})
+	block := NewVanilla(anyvec32.CurrentCreator(), 3, 2, anynet.Tanh)
+	inSeq, inVars := randomTestSequence(3)
 	if len(block.Parameters()) != 4 {
 		t.Errorf("expected 4 parameters, but got %d", len(block.Parameters()))
 	}
 	checker := &anydifftest.SeqChecker{
 		F: func() anyseq.Seq {
-			return Map(seq, block)
+			return Map(inSeq, block)
 		},
 		V: append(inVars, block.Parameters()...),
 	}

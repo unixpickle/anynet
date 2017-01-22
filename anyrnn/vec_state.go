@@ -112,6 +112,6 @@ func (v *VecState) PropagateStart(va *anydiff.Var, g anydiff.Grad) {
 		}
 	}
 	if dest, ok := g[va]; ok {
-		dest.Add(anyvec.SumRows(v.Vector, len(v.PresentMap)))
+		dest.Add(anyvec.SumRows(v.Vector, v.Vector.Len()/len(v.PresentMap)))
 	}
 }
