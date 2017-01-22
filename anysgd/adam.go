@@ -61,7 +61,7 @@ func (a *Adam) Transform(realGrad anydiff.Grad) anydiff.Grad {
 func (a *Adam) updateMoments(grad anydiff.Grad) {
 	if a.firstMoment == nil {
 		a.firstMoment = copyGrad(grad)
-		scaleGrad(grad, 1-a.decayRate(1))
+		scaleGrad(a.firstMoment, 1-a.decayRate(1))
 	} else {
 		decayRate := a.decayRate(1)
 		scaleGrad(a.firstMoment, decayRate)

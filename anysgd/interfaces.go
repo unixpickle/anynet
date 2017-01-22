@@ -19,6 +19,9 @@ import "github.com/unixpickle/anydiff"
 // the input.
 // If a Transformer needs to cache things relating to its
 // inputs, it must allocate a separate gradient.
+//
+// A Transformer's output is only guaranteed to be valid
+// until the next time Transform is called.
 type Transformer interface {
 	Transform(g anydiff.Grad) anydiff.Grad
 }
