@@ -5,6 +5,7 @@
 # TODO
 
  * anyff and anys2s
+   * Gradienter flag indicating whether or not to average
    * TotalCost() helpers
    * Tests
  * anyrnn

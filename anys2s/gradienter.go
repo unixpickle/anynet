@@ -69,7 +69,7 @@ func (g *Gradienter) Gradient(s anysgd.SampleList) anydiff.Grad {
 			timestepUpstream = timestepUpstream.Slice(0, x.Packed.Len())
 		}
 		upstream[i] = &anyseq.Batch{
-			Packed:  timestepUpstream,
+			Packed:  timestepUpstream.Copy(),
 			Present: x.Present,
 		}
 	}
