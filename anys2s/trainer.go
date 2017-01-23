@@ -1,7 +1,8 @@
-package anyff
+package anys2s
 
 import (
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyvec"
@@ -10,15 +11,14 @@ import (
 // A Batch stores an input and output batch in a packed
 // format.
 type Batch struct {
-	Inputs  *anydiff.Const
-	Outputs *anydiff.Const
-	Num     int
+	Inputs  anyseq.Seq
+	Outputs anyseq.Seq
 }
 
-// A Trainer can construct batches, compute gradients, and
-// tally up costs for feed-forward neural networks.
+// A Trainer creates batches, computes gradients, and adds
+// up costs for a sequence-to-sequence mapping.
 type Trainer struct {
-	Net    anynet.Layer
+	Func   func(anyseq.Seq) anyseq.Seq
 	Cost   anynet.Cost
 	Params []*anydiff.Var
 
@@ -40,35 +40,47 @@ func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	if s.Len() == 0 {
 		panic("empty batch")
 	}
-
 	l := s.(SampleList)
-	var ins, outs []anyvec.Vector
+	ins := make([][]anyvec.Vector, l.Len())
+	outs := make([][]anyvec.Vector, l.Len())
 	for i := 0; i < l.Len(); i++ {
 		sample := l.GetSample(i)
-		ins = append(ins, sample.Input)
-		outs = append(outs, sample.Output)
+		ins[i] = sample.Input
+		outs[i] = sample.Output
 	}
-
-	joinedIns := ins[0].Creator().Concat(ins...)
-	joinedOuts := outs[0].Creator().Concat(outs...)
-
 	return &Batch{
-		Inputs:  anydiff.NewConst(joinedIns),
-		Outputs: anydiff.NewConst(joinedOuts),
-		Num:     l.Len(),
+		Inputs:  anyseq.ConstSeqList(ins),
+		Outputs: anyseq.ConstSeqList(outs),
 	}, nil
 }
 
 // TotalCost computes the total cost for the batch.
 func (t *Trainer) TotalCost(b *Batch) anydiff.Res {
-	outRes := t.Net.Apply(b.Inputs, b.Num)
-	cost := t.Cost.Cost(b.Outputs, outRes, b.Num)
-	total := anydiff.Sum(cost)
+	actual := t.Func(b.Inputs)
+
+	if len(actual.Output()) != len(b.Outputs.Output()) {
+		panic("mismatching actual and desired sequence shapes")
+	}
+
+	var idx int
+	var costCount int
+	allCosts := anyseq.Map(actual, func(a anydiff.Res, n int) anydiff.Res {
+		batch := b.Outputs.Output()[idx]
+		if batch.NumPresent() != n {
+			panic("mismatching actual and desired sequence shapes")
+		}
+		costCount += n
+		idx++
+		c := t.Cost.Cost(anydiff.NewConst(batch.Packed), a, n)
+		return c
+	})
+
+	sum := anydiff.Sum(anyseq.Sum(allCosts))
 	if t.Average {
-		divisor := 1 / float64(cost.Output().Len())
-		return anydiff.Scale(total, total.Output().Creator().MakeNumeric(divisor))
+		scaler := sum.Output().Creator().MakeNumeric(1 / float64(costCount))
+		return anydiff.Scale(sum, scaler)
 	} else {
-		return total
+		return sum
 	}
 }
 
