@@ -26,18 +26,33 @@ type Transformer interface {
 	Transform(g anydiff.Grad) anydiff.Grad
 }
 
-// A Gradienter computes a gradient for a list of samples.
+// A Batch is an immutable list of samples.
+//
+// In contrast to a SampleList, a Batch is not assumed to
+// use lazy evaluation.
+// This means that Batches should only be created when
+// they are about to be used.
+//
+// Batches are obtained using a Fetcher and then used as
+// arguments to a Gradienter.
+type Batch interface{}
+
+// A Fetcher is responsible for fetching Batches for
+// SampleLists.
+//
+// Typically, a Fetcher will be used concurrently with
+// SGD, making it possible to have a new Batch available
+// exactly when the previous one is done being used.
+type Fetcher interface {
+	Fetch(s SampleList) (Batch, error)
+}
+
+// A Gradienter computes a gradient for a Batch.
 //
 // The same gradient instance may be re-used by successive
 // calls to Gradient.
 type Gradienter interface {
-	Gradient(s SampleList) anydiff.Grad
-}
-
-// A Stopper indicates that gradient descent should stop
-// by returning true from its Done method.
-type Stopper interface {
-	Done() bool
+	Gradient(b Batch) anydiff.Grad
 }
 
 // A Rater determines the learning rate given the epoch

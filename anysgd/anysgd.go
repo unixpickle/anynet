@@ -6,6 +6,10 @@ package anysgd
 
 // SGD performs stochastic gradient descent.
 type SGD struct {
+	// Fetcher is used to obtain Batches for mini-batch
+	// slices of the sample list.
+	Fetcher Fetcher
+
 	// Gradienter is used to compute initial, untransformed
 	// gradients for each mini-batch.
 	Gradienter Gradienter
@@ -26,7 +30,7 @@ type SGD struct {
 
 	// StatusFunc, if non-nil, is called before every
 	// iteration with the next mini-batch.
-	StatusFunc func(batch SampleList)
+	StatusFunc func(batch Batch)
 
 	// BatchSize is the mini-batch size.
 	// If it is 0, then the entire sample list is used at
@@ -40,31 +44,77 @@ type SGD struct {
 	NumProcessed int
 }
 
-// Run runs SGD until s indicates to stop.
-func (s *SGD) Run(stopper Stopper) {
+// Run runs SGD until doneChan is closed or the fetcher
+// returns an error.
+//
+// Run is not thread-safe, and you should never modify the
+// struct's fields while Run is active.
+// However, you may safely read from s.NumProcessed during
+// calls to s.StatusFunc.
+func (s *SGD) Run(doneChan <-chan struct{}) error {
 	if s.Samples.Len() == 0 {
 		panic("cannot run SGD with empty sample list")
 	}
-	idx := s.Samples.Len()
-	for !stopper.Done() {
-		remaining := s.Samples.Len() - idx
-		if remaining == 0 {
-			Shuffle(s.Samples)
-			idx = 0
-			remaining = s.Samples.Len()
+
+	errChan := make(chan error, 1)
+	batchChan := make(chan *batchInfo)
+
+	go func() {
+		idx := s.Samples.Len()
+		for {
+			select {
+			case <-doneChan:
+				return
+			default:
+			}
+			remaining := s.Samples.Len() - idx
+			if remaining == 0 {
+				Shuffle(s.Samples)
+				idx = 0
+				remaining = s.Samples.Len()
+			}
+			batchSize := s.batchSize(remaining)
+			batchSlice := s.Samples.Slice(idx, idx+batchSize)
+			idx += batchSize
+			batch, err := s.Fetcher.Fetch(batchSlice)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			select {
+			case batchChan <- &batchInfo{batch, batchSize}:
+			case <-doneChan:
+				return
+			}
 		}
-		batchSize := s.batchSize(remaining)
-		batch := s.Samples.Slice(idx, idx+batchSize)
-		idx += batchSize
+	}()
+
+	for {
+		select {
+		case <-doneChan:
+			return nil
+		default:
+		}
+
+		var info *batchInfo
+		select {
+		case info = <-batchChan:
+		case err := <-errChan:
+			return err
+		case <-doneChan:
+			return nil
+		}
 
 		if s.StatusFunc != nil {
-			s.StatusFunc(batch)
-			if stopper.Done() {
-				break
+			s.StatusFunc(info.Batch)
+			select {
+			case <-doneChan:
+				return nil
+			default:
 			}
 		}
 
-		grad := s.Gradienter.Gradient(batch)
+		grad := s.Gradienter.Gradient(info.Batch)
 		if s.Transformer != nil {
 			grad = s.Transformer.Transform(grad)
 		}
@@ -73,7 +123,7 @@ func (s *SGD) Run(stopper Stopper) {
 		scaleGrad(grad, -s.Rater.Rate(epoch))
 		grad.AddToVars()
 
-		s.NumProcessed += batchSize
+		s.NumProcessed += info.Size
 	}
 }
 
@@ -83,4 +133,9 @@ func (s *SGD) batchSize(remaining int) int {
 	} else {
 		return s.BatchSize
 	}
+}
+
+type batchInfo struct {
+	Batch Batch
+	Size  int
 }

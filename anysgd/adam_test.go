@@ -44,16 +44,19 @@ func TestAdamValues(t *testing.T) {
 }
 
 func TestAdamTraining(t *testing.T) {
+	stop := newTestStopper(100000)
 	g := newTestGradienter()
 	s := &SGD{
+		Fetcher:     testFetcher{},
 		Gradienter:  g,
 		Transformer: &Adam{},
 		Samples:     newTestSampleList(),
 		Rater:       ConstRater(0.001),
+		StatusFunc:  stop.StatusFunc,
 		BatchSize:   1,
 	}
 
-	s.Run(&testStopper{callsRemaining: 100000})
+	s.Run(stop.Chan())
 
 	if g.errorMargin() > 1e-2 {
 		x, y := g.current()

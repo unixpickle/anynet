@@ -53,13 +53,30 @@ func (t testSampleList) Slice(i, j int) SampleList {
 	return append(testSampleList{}, t[i:j]...)
 }
 
-type testStopper struct {
-	callsRemaining int
+type testFetcher struct{}
+
+func (t testFetcher) Fetch(s SampleList) (Batch, error) {
+	return s, nil
 }
 
-func (t *testStopper) Done() bool {
+type testStopper struct {
+	callsRemaining int
+	channel        chan struct{}
+}
+
+func newTestStopper(calls int) *testStopper {
+	return &testStopper{callsRemaining: calls, channel: make(chan struct{})}
+}
+
+func (t *testStopper) StatusFunc(b Batch) {
 	t.callsRemaining--
-	return t.callsRemaining < 0
+	if t.callsRemaining == 0 {
+		close(t.channel)
+	}
+}
+
+func (t *testStopper) Chan() <-chan struct{} {
+	return t.channel
 }
 
 type testGradienter struct {
@@ -75,9 +92,10 @@ func newTestGradienter() *testGradienter {
 	}
 }
 
-func (t *testGradienter) Gradient(s SampleList) anydiff.Grad {
+func (t *testGradienter) Gradient(batch Batch) anydiff.Grad {
+	s := batch.(testSampleList)
 	var cost anydiff.Res
-	for _, x := range s.(testSampleList) {
+	for _, x := range s {
 		res := x.Apply(t.X, t.Y)
 		if cost == nil {
 			cost = res
@@ -111,15 +129,18 @@ func (t *testGradienter) errorMargin() float64 {
 }
 
 func TestSGD(t *testing.T) {
+	stop := newTestStopper(400000)
 	g := newTestGradienter()
 	s := &SGD{
+		Fetcher:    testFetcher{},
 		Gradienter: g,
 		Samples:    newTestSampleList(),
 		Rater:      ConstRater(0.0002),
+		StatusFunc: stop.StatusFunc,
 		BatchSize:  1,
 	}
 
-	s.Run(&testStopper{callsRemaining: 400000})
+	s.Run(stop.Chan())
 
 	if g.errorMargin() > 1e-2 {
 		x, y := g.current()
