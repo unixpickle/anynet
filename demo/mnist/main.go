@@ -27,27 +27,29 @@ func main() {
 		anynet.LogSoftmax,
 	}
 
-	g := &anyff.Gradienter{
-		Net:    network,
-		Cost:   anynet.DotCost{},
-		Params: network.Parameters(),
+	t := &anyff.Trainer{
+		Net:     network,
+		Cost:    anynet.DotCost{},
+		Params:  network.Parameters(),
+		Average: true,
 	}
 
 	var iterNum int
 	s := &anysgd.SGD{
-		Gradienter:  g,
+		Fetcher:     t,
+		Gradienter:  t,
 		Transformer: &anysgd.Adam{},
 		Samples:     trainingSet(),
 		Rater:       anysgd.ConstRater(0.001),
-		StatusFunc: func(s anysgd.SampleList) {
-			log.Printf("iter %d: cost=%f", iterNum, g.LastCost)
+		StatusFunc: func(b anysgd.Batch) {
+			log.Printf("iter %d: cost=%v", iterNum, t.LastCost)
 			iterNum++
 		},
 		BatchSize: 100,
 	}
 
 	log.Println("Press ctrl+c once to stop...")
-	s.Run(rip.NewRIP())
+	s.Run(rip.NewRIP().Chan())
 
 	log.Println("Computing statistics...")
 	printStats(network)
