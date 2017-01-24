@@ -94,7 +94,7 @@ func NewVanillaZero(c anyvec.Creator, in, out int, activation anynet.Layer) *Van
 	}
 }
 
-// Start generates an initial state.
+// Start generates an initial *VecState.
 func (v *Vanilla) Start(n int) State {
 	return NewVecState(v.StartState.Vector, n)
 }

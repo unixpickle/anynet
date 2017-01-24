@@ -38,10 +38,10 @@ func DeserializeStack(d []byte) (Stack, error) {
 	return res, nil
 }
 
-// Start produces a start state.
+// Start produces a start StackState.
 func (s Stack) Start(n int) State {
 	s.assertNonEmpty()
-	res := make(stackState, len(s))
+	res := make(StackState, len(s))
 	for i, x := range s {
 		res[i] = x.Start(n)
 	}
@@ -51,7 +51,7 @@ func (s Stack) Start(n int) State {
 // PropagateStart back-propagates through the start state.
 func (s Stack) PropagateStart(sg StateGrad, g anydiff.Grad) {
 	for i, x := range s {
-		x.PropagateStart(sg.(stackGrad)[i], g)
+		x.PropagateStart(sg.(StackGrad)[i], g)
 	}
 }
 
@@ -60,7 +60,7 @@ func (s Stack) Step(st State, in anyvec.Vector) Res {
 	res := &stackRes{V: anydiff.VarSet{}}
 	inVec := in
 	for i, x := range s {
-		inState := st.(stackState)[i]
+		inState := st.(StackState)[i]
 		blockRes := x.Step(inState, inVec)
 		inVec = blockRes.Output()
 		res.Reses = append(res.Reses, blockRes)
@@ -110,7 +110,7 @@ func (s Stack) assertNonEmpty() {
 
 type stackRes struct {
 	Reses    []Res
-	OutState stackState
+	OutState StackState
 	V        anydiff.VarSet
 }
 
@@ -129,11 +129,11 @@ func (s *stackRes) Vars() anydiff.VarSet {
 func (s *stackRes) Propagate(u anyvec.Vector, sg StateGrad, g anydiff.Grad) (anyvec.Vector,
 	StateGrad) {
 	downVec := u
-	downStates := make(stackGrad, len(s.Reses))
+	downStates := make(StackGrad, len(s.Reses))
 	for i := len(s.Reses) - 1; i >= 0; i-- {
 		var stateUpstream StateGrad
 		if sg != nil {
-			stateUpstream = sg.(stackGrad)[i]
+			stateUpstream = sg.(StackGrad)[i]
 		}
 		down, downState := s.Reses[i].Propagate(downVec, stateUpstream, g)
 		downVec = down
@@ -142,28 +142,41 @@ func (s *stackRes) Propagate(u anyvec.Vector, sg StateGrad, g anydiff.Grad) (any
 	return downVec, downStates
 }
 
-type stackState []State
+// StackState is the State type for a Stack.
+//
+// Each State in the slice corresponds to a Block in the
+// Stack.
+type StackState []State
 
-func (s stackState) Present() PresentMap {
+// Present returns the present map of one of the internal
+// states.
+func (s StackState) Present() PresentMap {
 	return s[0].Present()
 }
 
-func (s stackState) Reduce(p PresentMap) State {
-	res := make(stackState, len(s))
+// Reduce reduces all the internal states.
+func (s StackState) Reduce(p PresentMap) State {
+	res := make(StackState, len(s))
 	for i, x := range s {
 		res[i] = x.Reduce(p)
 	}
 	return res
 }
 
-type stackGrad []StateGrad
+// StackGrad is the StateGrad type for a Stack.
+//
+// It is pretty much analogous to StackState.
+type StackGrad []StateGrad
 
-func (s stackGrad) Present() PresentMap {
+// Present returns the present map of one of the internal
+// state grads.
+func (s StackGrad) Present() PresentMap {
 	return s[0].Present()
 }
 
-func (s stackGrad) Expand(p PresentMap) StateGrad {
-	res := make(stackGrad, len(s))
+// Expand expands all the internal state grads.
+func (s StackGrad) Expand(p PresentMap) StateGrad {
+	res := make(StackGrad, len(s))
 	for i, x := range s {
 		res[i] = x.Expand(p)
 	}

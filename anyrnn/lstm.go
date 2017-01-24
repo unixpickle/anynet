@@ -82,28 +82,28 @@ func NewLSTMZero(c anyvec.Creator, in, state int) *LSTM {
 
 // Start returns the start state for the RNN.
 func (l *LSTM) Start(n int) State {
-	return &lstmState{
-		lastOut:  NewVecState(l.InitLastOut.Output(), n),
-		internal: NewVecState(l.InitInternal.Output(), n),
+	return &LSTMState{
+		LastOut:  NewVecState(l.InitLastOut.Output(), n),
+		Internal: NewVecState(l.InitInternal.Output(), n),
 	}
 }
 
 // PropagateStart propagates through the start state.
 func (l *LSTM) PropagateStart(s StateGrad, g anydiff.Grad) {
-	ls := s.(*lstmState)
-	ls.lastOut.PropagateStart(l.InitLastOut, g)
-	ls.internal.PropagateStart(l.InitInternal, g)
+	ls := s.(*LSTMState)
+	ls.LastOut.PropagateStart(l.InitLastOut, g)
+	ls.Internal.PropagateStart(l.InitInternal, g)
 }
 
 // Step performs one timestep.
 func (l *LSTM) Step(s State, in anyvec.Vector) Res {
-	ls := s.(*lstmState)
+	ls := s.(*LSTMState)
 
 	res := &lstmRes{
 		V:                anydiff.VarSet{},
 		InPool:           anydiff.NewVar(in),
-		LastOutPool:      anydiff.NewVar(ls.lastOut.Vector),
-		LastInternalPool: anydiff.NewVar(ls.internal.Vector),
+		LastOutPool:      anydiff.NewVar(ls.LastOut.Vector),
+		LastInternalPool: anydiff.NewVar(ls.Internal.Vector),
 	}
 
 	for _, p := range l.Parameters() {
@@ -125,12 +125,12 @@ func (l *LSTM) Step(s State, in anyvec.Vector) Res {
 	squashedOut := l.OutSquash.Apply(res.InternalPool, s.Present().NumPresent())
 
 	res.OutputRes = anydiff.Mul(outGate, squashedOut)
-	res.OutState = &lstmState{
-		lastOut: &VecState{
+	res.OutState = &LSTMState{
+		LastOut: &VecState{
 			Vector:     res.OutputRes.Output(),
 			PresentMap: s.Present(),
 		},
-		internal: &VecState{
+		Internal: &VecState{
 			Vector:     res.InternalRes.Output(),
 			PresentMap: s.Present(),
 		},
@@ -245,31 +245,38 @@ func (l *LSTMGate) Serialize() ([]byte, error) {
 	return serializer.SerializeAny(sw, iw, p, b, l.Activation)
 }
 
-type lstmState struct {
-	lastOut  *VecState
-	internal *VecState
+// LSTMState is the State and StateGrad type for LSTMs.
+type LSTMState struct {
+	// LastOut is the last output of the block.
+	LastOut *VecState
+
+	// Internal is the last (unsquashed) internal state.
+	Internal *VecState
 }
 
-func (l *lstmState) Present() PresentMap {
-	return l.lastOut.Present()
+// Present returns the present map.
+func (l *LSTMState) Present() PresentMap {
+	return l.LastOut.Present()
 }
 
-func (l *lstmState) Reduce(p PresentMap) State {
-	return &lstmState{
-		lastOut:  l.lastOut.Reduce(p).(*VecState),
-		internal: l.internal.Reduce(p).(*VecState),
+// Reduce reduces both internal states.
+func (l *LSTMState) Reduce(p PresentMap) State {
+	return &LSTMState{
+		LastOut:  l.LastOut.Reduce(p).(*VecState),
+		Internal: l.Internal.Reduce(p).(*VecState),
 	}
 }
 
-func (l *lstmState) Expand(p PresentMap) StateGrad {
-	return &lstmState{
-		lastOut:  l.lastOut.Expand(p).(*VecState),
-		internal: l.internal.Expand(p).(*VecState),
+// Exand expands both internal states.
+func (l *LSTMState) Expand(p PresentMap) StateGrad {
+	return &LSTMState{
+		LastOut:  l.LastOut.Expand(p).(*VecState),
+		Internal: l.Internal.Expand(p).(*VecState),
 	}
 }
 
 type lstmRes struct {
-	OutState *lstmState
+	OutState *LSTMState
 	OutVec   anyvec.Vector
 	V        anydiff.VarSet
 
@@ -306,23 +313,23 @@ func (l *lstmRes) Propagate(u anyvec.Vector, s StateGrad, g anydiff.Grad) (anyve
 	}()
 
 	if s != nil {
-		u.Add(s.(*lstmState).lastOut.Vector)
+		u.Add(s.(*LSTMState).LastOut.Vector)
 	}
 	l.OutputRes.Propagate(u, g)
 	internalUpstream := g[l.InternalPool]
 	delete(g, l.InternalPool)
 
 	if s != nil {
-		internalUpstream.Add(s.(*lstmState).internal.Vector)
+		internalUpstream.Add(s.(*LSTMState).Internal.Vector)
 	}
 	l.InternalRes.Propagate(internalUpstream, g)
 
-	downState := &lstmState{
-		lastOut: &VecState{
+	downState := &LSTMState{
+		LastOut: &VecState{
 			Vector:     g[l.LastOutPool],
 			PresentMap: l.OutState.Present(),
 		},
-		internal: &VecState{
+		Internal: &VecState{
 			Vector:     g[l.LastInternalPool],
 			PresentMap: l.OutState.Present(),
 		},
