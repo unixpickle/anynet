@@ -1,6 +1,6 @@
 // Package anyconv provides various types of layers for
 // convolutional neural networks.
-package conv
+package anyconv
 
 import (
 	"errors"
@@ -205,7 +205,7 @@ func (c *Conv) initIm2Col() {
 			for subY := 0; subY < c.FilterHeight; subY++ {
 				subYIdx := (y + subY) * c.InputWidth * c.InputDepth
 				for subX := 0; subX < c.FilterWidth; subX++ {
-					subXIdx := subYIdx + subX*c.InputDepth
+					subXIdx := subYIdx + (subX+x)*c.InputDepth
 					for subZ := 0; subZ < c.InputDepth; subZ++ {
 						mapping = append(mapping, subXIdx+subZ)
 					}
@@ -305,6 +305,7 @@ func (c *convRes) propagateBiases(biasGrad, upstream anyvec.Vector) {
 		Rows: upMat.Rows,
 		Cols: 1,
 	}
+	oneMat.Data.AddScaler(upstream.Creator().MakeNumeric(1))
 	resMat := &anyvec.Matrix{
 		Data: biasGrad,
 		Rows: biasGrad.Len(),
