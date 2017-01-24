@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/serializer"
 )
@@ -42,19 +42,26 @@ func TestFCSerialize(t *testing.T) {
 	if err := serializer.DeserializeAny(data, &newFC); err != nil {
 		t.Fatal(err)
 	}
-	if newFC.InCount != fc.InCount || newFC.OutCount != fc.OutCount {
-		t.Fatalf("expected %d->%d but got %d->%d", fc.InCount, fc.OutCount,
-			newFC.InCount, newFC.OutCount)
+	if !reflect.DeepEqual(fc, newFC) {
+		t.Fatal("incorrect result")
 	}
-	weightDiff := newFC.Weights.Vector.Copy()
-	weightDiff.Sub(fc.Weights.Vector)
-	if anyvec.AbsMax(weightDiff).(float32) > 1e-3 {
-		t.Error("weight mismatch")
+}
+
+func TestAffineSerialize(t *testing.T) {
+	affine := &Affine{
+		Scalers: anydiff.NewVar(anyvec32.MakeVectorData([]float32{1, 2, -1})),
+		Biases:  anydiff.NewVar(anyvec32.MakeVectorData([]float32{-3, 1})),
 	}
-	biasDiff := newFC.Biases.Vector.Copy()
-	biasDiff.Sub(fc.Biases.Vector)
-	if anyvec.AbsMax(biasDiff).(float32) > 1e-3 {
-		t.Error("weight mismatch")
+	data, err := serializer.SerializeAny(affine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newAffine *Affine
+	if err := serializer.DeserializeAny(data, &newAffine); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(affine, newAffine) {
+		t.Fatal("incorrect result")
 	}
 }
 
