@@ -104,7 +104,7 @@ func (c *Conv) OutputDepth() int {
 	return c.FilterCount
 }
 
-// Apply applies the layer to some input.
+// Apply applies the layer an input tensor.
 //
 // The layer must have been initialized.
 //
@@ -114,7 +114,7 @@ func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 		panic("cannot apply uninitialized Conv")
 	}
 	if c.im2col == nil {
-		c.initIm2Col()
+		c.initIm2Col(c.Filters.Vector.Creator())
 	}
 	if c.OutputWidth() == 0 || c.OutputHeight() == 0 {
 		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
@@ -197,7 +197,7 @@ func (c *Conv) Serialize() ([]byte, error) {
 	)
 }
 
-func (c *Conv) initIm2Col() {
+func (c *Conv) initIm2Col(cr anyvec.Creator) {
 	var mapping []int
 
 	for y := 0; y+c.FilterHeight <= c.InputHeight; y += c.StrideY {
@@ -215,7 +215,7 @@ func (c *Conv) initIm2Col() {
 	}
 
 	inSize := c.InputWidth * c.InputHeight * c.InputDepth
-	c.im2col = c.Filters.Vector.Creator().MakeMapper(inSize, mapping)
+	c.im2col = cr.MakeMapper(inSize, mapping)
 }
 
 func (c *Conv) filterMatrix() *anyvec.Matrix {
