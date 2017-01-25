@@ -84,12 +84,14 @@ func (b *BatchNorm) Apply(in anydiff.Res, batch int) anydiff.Res {
 		variance = anydiff.AddScaler(variance, c.MakeNumeric(stab))
 		normalizer := anydiff.Pow(variance, c.MakeNumeric(-0.5))
 
-		normalized := anydiff.ScaleRepeated(
-			anydiff.AddRepeated(in, negMean),
-			normalizer,
-		)
-
-		return anydiff.ScaleAddRepeated(normalized, b.Scalers, b.Biases)
+		totalScaler := anydiff.Mul(b.Scalers, normalizer)
+		return anydiff.Pool(totalScaler, func(totalScaler anydiff.Res) anydiff.Res {
+			return anydiff.ScaleAddRepeated(
+				in,
+				totalScaler,
+				anydiff.Add(b.Biases, anydiff.Mul(negMean, totalScaler)),
+			)
+		})
 	})
 }
 
