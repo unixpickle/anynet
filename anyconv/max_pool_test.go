@@ -2,13 +2,36 @@ package anyconv
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/serializer"
 )
+
+func TestMaxPoolSerialize(t *testing.T) {
+	mp := &MaxPool{
+		SpanX:       3,
+		SpanY:       2,
+		InputWidth:  15,
+		InputHeight: 13,
+		InputDepth:  4,
+	}
+	data, err := serializer.SerializeAny(mp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newLayer *MaxPool
+	if err := serializer.DeserializeAny(data, &newLayer); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(newLayer, mp) {
+		t.Fatal("layers differ")
+	}
+}
 
 func TestMaxPoolOutput(t *testing.T) {
 	mp := &MaxPool{

@@ -2,13 +2,30 @@ package anyconv
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/serializer"
 )
+
+func TestBatchNormSerialize(t *testing.T) {
+	layer := randomizedBatchNorm(4)
+	data, err := serializer.SerializeAny(layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newLayer *BatchNorm
+	if err := serializer.DeserializeAny(data, &newLayer); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(layer, newLayer) {
+		t.Error("layers differ")
+	}
+}
 
 func TestBatchNormOutput(t *testing.T) {
 	layer := &BatchNorm{

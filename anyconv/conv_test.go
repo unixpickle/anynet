@@ -2,13 +2,40 @@ package anyconv
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/serializer"
 )
+
+func TestConvSerialize(t *testing.T) {
+	conv := &Conv{
+		FilterCount:  4,
+		FilterWidth:  3,
+		FilterHeight: 2,
+		StrideX:      1,
+		StrideY:      2,
+		InputWidth:   10,
+		InputHeight:  9,
+		InputDepth:   2,
+	}
+	conv.InitRand(anyvec32.DefaultCreator{})
+	data, err := serializer.SerializeAny(conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newConv *Conv
+	if err := serializer.DeserializeAny(data, &newConv); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(newConv, conv) {
+		t.Fatal("layers differ")
+	}
+}
 
 func TestConvOutput(t *testing.T) {
 	layer := &Conv{

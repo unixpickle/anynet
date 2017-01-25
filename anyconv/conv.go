@@ -47,7 +47,7 @@ func DeserializeConv(d []byte) (*Conv, error) {
 		return nil, err
 	}
 	return &Conv{
-		FilterCount:  f.Vector.Len() / int(fW*fH&inD),
+		FilterCount:  f.Vector.Len() / int(fW*fH*inD),
 		FilterWidth:  int(fW),
 		FilterHeight: int(fH),
 		StrideX:      int(sX),
