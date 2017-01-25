@@ -67,12 +67,15 @@ func NewBatchNorm(c anyvec.Creator, inCount int) *BatchNorm {
 
 // Apply applies the layer to some inputs.
 func (b *BatchNorm) Apply(in anydiff.Res, batch int) anydiff.Res {
+	if in.Output().Len()%b.InputCount != 0 {
+		panic("invalid input size")
+	}
 	return anydiff.Pool(in, func(in anydiff.Res) anydiff.Res {
 		c := in.Output().Creator()
 
-		mean := b.computeMean(in)
-		secondMoment := b.computeMean(anydiff.Square(in))
-		variance := anydiff.Sub(secondMoment, anydiff.Square(mean))
+		negMean := negMeanRows(in, b.InputCount)
+		secondMoment := meanSquare(in, b.InputCount)
+		variance := anydiff.Sub(secondMoment, anydiff.Square(negMean))
 
 		stab := b.Stabilizer
 		if stab == 0 {
@@ -82,7 +85,7 @@ func (b *BatchNorm) Apply(in anydiff.Res, batch int) anydiff.Res {
 		normalizer := anydiff.Pow(variance, c.MakeNumeric(-0.5))
 
 		normalized := anydiff.ScaleRepeated(
-			anydiff.AddRepeated(in, anydiff.Scale(mean, c.MakeNumeric(-1))),
+			anydiff.AddRepeated(in, negMean),
 			normalizer,
 		)
 
@@ -109,18 +112,4 @@ func (b *BatchNorm) Serialize() ([]byte, error) {
 		&anyvecsave.S{Vector: b.Biases.Vector},
 		serializer.Float64(b.Stabilizer),
 	)
-}
-
-func (b *BatchNorm) computeMean(in anydiff.Res) anydiff.Res {
-	if in.Output().Len()%b.InputCount != 0 {
-		panic("invalid input size")
-	}
-	n := in.Output().Len() / b.InputCount
-	summation := anydiff.SumRows(&anydiff.Matrix{
-		Data: in,
-		Rows: n,
-		Cols: b.InputCount,
-	})
-	scaler := 1 / float64(n)
-	return anydiff.Scale(summation, in.Output().Creator().MakeNumeric(scaler))
 }
