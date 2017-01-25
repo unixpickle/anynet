@@ -37,7 +37,7 @@ func (p *PostTrainer) Run() error {
 			continue
 		}
 		preNet := p.Net[:i]
-		mean, stddev, err := momentsFromOutputs(p.evaluateBatch(preNet))
+		mean, stddev, err := momentsFromOutputs(bn, p.evaluateBatch(preNet))
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,6 @@ func (p *PostTrainer) evaluateBatch(subNet anynet.Net) <-chan *postTrainerOutput
 			outVec := subNet.Apply(inVec, bs).Output().Copy()
 			resChan <- &postTrainerOutput{
 				Vec: outVec,
-				N:   bs,
 			}
 		}
 	}()
@@ -82,10 +81,10 @@ func (p *PostTrainer) evaluateBatch(subNet anynet.Net) <-chan *postTrainerOutput
 type postTrainerOutput struct {
 	Err error
 	Vec anyvec.Vector
-	N   int
 }
 
-func momentsFromOutputs(c <-chan *postTrainerOutput) (mean, stddev anyvec.Vector, err error) {
+func momentsFromOutputs(b *BatchNorm, c <-chan *postTrainerOutput) (mean,
+	stddev anyvec.Vector, err error) {
 	var sum, sqSum anyvec.Vector
 	var count int
 	for item := range c {
@@ -93,10 +92,10 @@ func momentsFromOutputs(c <-chan *postTrainerOutput) (mean, stddev anyvec.Vector
 			return nil, nil, item.Err
 		}
 
-		count += item.N
-		thisSum := anyvec.SumRows(item.Vec, item.Vec.Len()/item.N)
+		count += item.Vec.Len() / b.InputCount
+		thisSum := anyvec.SumRows(item.Vec, b.InputCount)
 		item.Vec.Mul(item.Vec.Copy())
-		thisSqSum := anyvec.SumRows(item.Vec, item.Vec.Len()/item.N)
+		thisSqSum := anyvec.SumRows(item.Vec, b.InputCount)
 
 		if sum == nil {
 			sum = thisSum
@@ -117,6 +116,7 @@ func momentsFromOutputs(c <-chan *postTrainerOutput) (mean, stddev anyvec.Vector
 	sumSq.Mul(sum)
 
 	sqSum.Sub(sumSq)
+	sqSum.AddScaler(sqSum.Creator().MakeNumeric(b.stabilizer()))
 	anyvec.Pow(sqSum, sqSum.Creator().MakeNumeric(0.5))
 
 	return sum, sqSum, nil

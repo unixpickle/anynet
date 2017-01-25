@@ -77,11 +77,7 @@ func (b *BatchNorm) Apply(in anydiff.Res, batch int) anydiff.Res {
 		secondMoment := meanSquare(in, b.InputCount)
 		variance := anydiff.Sub(secondMoment, anydiff.Square(negMean))
 
-		stab := b.Stabilizer
-		if stab == 0 {
-			stab = defaultBNStabilizer
-		}
-		variance = anydiff.AddScaler(variance, c.MakeNumeric(stab))
+		variance = anydiff.AddScaler(variance, c.MakeNumeric(b.stabilizer()))
 		normalizer := anydiff.Pow(variance, c.MakeNumeric(-0.5))
 
 		totalScaler := anydiff.Mul(b.Scalers, normalizer)
@@ -114,4 +110,12 @@ func (b *BatchNorm) Serialize() ([]byte, error) {
 		&anyvecsave.S{Vector: b.Biases.Vector},
 		serializer.Float64(b.Stabilizer),
 	)
+}
+
+func (b *BatchNorm) stabilizer() float64 {
+	if b.Stabilizer == 0 {
+		return defaultBNStabilizer
+	} else {
+		return b.Stabilizer
+	}
 }
