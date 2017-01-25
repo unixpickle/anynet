@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/serializer"
 )
 
@@ -20,6 +21,7 @@ const (
 	Tanh Activation = iota
 	LogSoftmax
 	Sigmoid
+	ReLU
 )
 
 // DeserializeActivation deserializes an Activation.
@@ -28,7 +30,7 @@ func DeserializeActivation(d []byte) (Activation, error) {
 		return 0, fmt.Errorf("data length (%d) should be 1", len(d))
 	}
 	a := Activation(d[0])
-	if a > Sigmoid {
+	if a > ReLU {
 		return 0, fmt.Errorf("unknown activation ID: %d", a)
 	}
 	return a, nil
@@ -47,6 +49,8 @@ func (a Activation) Apply(in anydiff.Res, n int) anydiff.Res {
 		return anydiff.LogSoftmax(in, inLen/n)
 	case Sigmoid:
 		return anydiff.Sigmoid(in)
+	case ReLU:
+		return reLU(in)
 	default:
 		panic(fmt.Sprintf("unknown activation: %d", a))
 	}
@@ -61,4 +65,10 @@ func (a Activation) SerializerType() string {
 // Serialize serializes the activation.
 func (a Activation) Serialize() ([]byte, error) {
 	return []byte{byte(a)}, nil
+}
+
+func reLU(in anydiff.Res) anydiff.Res {
+	mask := in.Output().Copy()
+	anyvec.GreaterThan(mask, mask.Creator().MakeNumeric(0))
+	return anydiff.Mul(in, anydiff.NewConst(mask))
 }

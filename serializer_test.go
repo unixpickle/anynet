@@ -13,12 +13,14 @@ func TestActivationSerialize(t *testing.T) {
 	a1 := Tanh
 	a2 := LogSoftmax
 	a3 := Sigmoid
-	data, err := serializer.SerializeAny(a1, a2, a3)
+	a4 := ReLU
+	data, err := serializer.SerializeAny(a1, a2, a3, a4)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var newA1, newA2, newA3 Activation
-	if err := serializer.DeserializeAny(data, &newA1, &newA2, &newA3); err != nil {
+	var newA1, newA2, newA3, newA4 Activation
+	err = serializer.DeserializeAny(data, &newA1, &newA2, &newA3, &newA4)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if newA1 != a1 {
@@ -29,6 +31,9 @@ func TestActivationSerialize(t *testing.T) {
 	}
 	if newA3 != a3 {
 		t.Error("Sigmoid failed")
+	}
+	if newA4 != a4 {
+		t.Error("ReLU failed")
 	}
 }
 
