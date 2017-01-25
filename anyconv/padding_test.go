@@ -2,13 +2,39 @@ package anyconv
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/serializer"
 )
+
+func TestPaddingSerialize(t *testing.T) {
+	pl := &Padding{
+		InputWidth:  1,
+		InputHeight: 2,
+		InputDepth:  3,
+
+		PaddingTop:    4,
+		PaddingBottom: 5,
+		PaddingLeft:   6,
+		PaddingRight:  7,
+	}
+	data, err := serializer.SerializeAny(pl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newLayer *Padding
+	if err := serializer.DeserializeAny(data, &newLayer); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(newLayer, pl) {
+		t.Fatal("layers differ")
+	}
+}
 
 func TestPaddingOutput(t *testing.T) {
 	pl := &Padding{
