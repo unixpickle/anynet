@@ -43,6 +43,8 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 		return layerForResidualBlock(inDims, c, b)
 	case *convmarkup.FC:
 		return anynet.NewFC(c, inDims.Width*inDims.Height*inDims.Depth, b.OutCount), nil
+	case *convmarkup.Activation:
+		return layerForActivationBlock(inDims, c, b)
 	case *convmarkup.MaxPool:
 		return &MaxPool{
 			SpanX:       b.Width,
@@ -117,4 +119,18 @@ func layerForResidualBlock(inDims convmarkup.Dims, c anyvec.Creator,
 	}
 
 	return res, nil
+}
+
+func layerForActivationBlock(inDims convmarkup.Dims, c anyvec.Creator,
+	b *convmarkup.Activation) (anynet.Layer, error) {
+	switch b.Name {
+	case "BatchNorm":
+		return NewBatchNorm(c, inDims.Depth), nil
+	case "ReLU":
+		return anynet.ReLU, nil
+	case "Softmax":
+		return anynet.LogSoftmax, nil
+	default:
+		return nil, fmt.Errorf("unknown activation: %s", b.Name)
+	}
 }
