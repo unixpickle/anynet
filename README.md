@@ -9,11 +9,8 @@
  * anyrnn
    * Tests for LSTM outputs
    * GRU
- * anyconv
-   * Helper to finalize BatchNorm
  * anynet
    * Dropout
-   * Convolutional networks
  * anysgd
    * RMSProp
    * Momentum
