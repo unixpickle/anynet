@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/unixpickle/anydiff"
-	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/serializer"
 )
 
@@ -50,7 +49,7 @@ func (a Activation) Apply(in anydiff.Res, n int) anydiff.Res {
 	case Sigmoid:
 		return anydiff.Sigmoid(in)
 	case ReLU:
-		return reLU(in)
+		return anydiff.ClipPos(in)
 	default:
 		panic(fmt.Sprintf("unknown activation: %d", a))
 	}
@@ -65,10 +64,4 @@ func (a Activation) SerializerType() string {
 // Serialize serializes the activation.
 func (a Activation) Serialize() ([]byte, error) {
 	return []byte{byte(a)}, nil
-}
-
-func reLU(in anydiff.Res) anydiff.Res {
-	mask := in.Output().Copy()
-	anyvec.GreaterThan(mask, mask.Creator().MakeNumeric(0))
-	return anydiff.Mul(in, anydiff.NewConst(mask))
 }

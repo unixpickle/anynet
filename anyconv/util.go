@@ -37,10 +37,19 @@ func (m *meanRowsRes) Vars() anydiff.VarSet {
 }
 
 func (m *meanRowsRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
-	downstream := m.Out.Creator().MakeVector(m.In.Output().Len())
-	anyvec.AddRepeated(downstream, u)
-	downstream.Scale(m.Scaler)
-	m.In.Propagate(downstream, g)
+	u.Scale(m.Scaler)
+	if v, ok := m.In.(*anydiff.Var); ok {
+		downstream, ok := g[v]
+		if !ok {
+			return
+		}
+		anyvec.AddRepeated(downstream, u)
+	} else {
+		downstream := m.Out.Creator().MakeVector(m.In.Output().Len())
+		anyvec.AddRepeated(downstream, u)
+		m.In.Propagate(downstream, g)
+	}
+
 }
 
 type meanSquareRes struct {
@@ -77,9 +86,9 @@ func (m *meanSquareRes) Vars() anydiff.VarSet {
 }
 
 func (m *meanSquareRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
+	u.Scale(m.Scaler)
 	downstream := m.Out.Creator().MakeVector(m.In.Output().Len())
 	anyvec.AddRepeated(downstream, u)
-	downstream.Scale(m.Scaler)
 	downstream.Mul(m.In.Output())
 	m.In.Propagate(downstream, g)
 }
