@@ -45,22 +45,28 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 		return anynet.NewFC(c, inDims.Width*inDims.Height*inDims.Depth, b.OutCount), nil
 	case *convmarkup.Activation:
 		return layerForActivationBlock(inDims, c, b)
-	case *convmarkup.MaxPool:
-		return &MaxPool{
-			SpanX:       b.Width,
-			SpanY:       b.Height,
-			InputWidth:  inDims.Width,
-			InputHeight: inDims.Height,
-			InputDepth:  inDims.Depth,
-		}, nil
-	case *convmarkup.MeanPool:
-		return &MeanPool{
-			SpanX:       b.Width,
-			SpanY:       b.Height,
-			InputWidth:  inDims.Width,
-			InputHeight: inDims.Height,
-			InputDepth:  inDims.Depth,
-		}, nil
+	case *convmarkup.Pool:
+		if b.Name == "MeanPool" {
+			return &MeanPool{
+				SpanX:       b.Width,
+				SpanY:       b.Height,
+				StrideX:     b.StrideX,
+				StrideY:     b.StrideY,
+				InputWidth:  inDims.Width,
+				InputHeight: inDims.Height,
+				InputDepth:  inDims.Depth,
+			}, nil
+		} else {
+			return &MaxPool{
+				SpanX:       b.Width,
+				SpanY:       b.Height,
+				StrideX:     b.StrideX,
+				StrideY:     b.StrideY,
+				InputWidth:  inDims.Width,
+				InputHeight: inDims.Height,
+				InputDepth:  inDims.Depth,
+			}, nil
+		}
 	case *convmarkup.Padding:
 		return &Padding{
 			InputWidth:    inDims.Width,
