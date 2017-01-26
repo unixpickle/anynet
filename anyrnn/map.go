@@ -6,6 +6,7 @@ import (
 )
 
 type mapRes struct {
+	F        func(s StateGrad, g anydiff.Grad)
 	InitPres PresentMap
 	In       anyseq.Seq
 	Out      []*anyseq.Batch
@@ -23,11 +24,28 @@ func Map(s anyseq.Seq, b Block) anyseq.Seq {
 	}
 
 	state := b.Start(len(inSteps[0].Present))
+	return MapWithStart(s, b, state, func(sg StateGrad, g anydiff.Grad) {
+		b.PropagateStart(sg, g)
+	})
+}
+
+// MapWithStart is like Map, but it takes a customized
+// start state rather than using the block's default start
+// state.
+//
+// During back-propagation, f is called with the upstream
+// state gradient for the start state.
+func MapWithStart(s anyseq.Seq, b Block, state State, f func(StateGrad, anydiff.Grad)) anyseq.Seq {
+	inSteps := s.Output()
+	if len(inSteps) == 0 {
+		return &mapRes{}
+	}
+
 	initPres := state.Present()
 	if inSteps[0].NumPresent() != len(inSteps[0].Present) {
 		state = state.Reduce(inSteps[0].Present)
 	}
-	res := &mapRes{InitPres: initPres, In: s, Block: b, V: s.Vars()}
+	res := &mapRes{F: f, InitPres: initPres, In: s, Block: b, V: s.Vars()}
 
 	for _, x := range inSteps {
 		if x.NumPresent() != state.Present().NumPresent() {
@@ -84,7 +102,7 @@ func (m *mapRes) Propagate(u []*anyseq.Batch, g anydiff.Grad) {
 		if m.InitPres.NumPresent() != upState.Present().NumPresent() {
 			upState = upState.Expand(m.InitPres)
 		}
-		m.Block.PropagateStart(upState, g)
+		m.F(upState, g)
 	}
 
 	if downstream != nil {
