@@ -92,3 +92,27 @@ func (m *meanSquareRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 	downstream.Mul(m.In.Output())
 	m.In.Propagate(downstream, g)
 }
+
+func batchMap(m anyvec.Mapper, in anyvec.Vector) anyvec.Vector {
+	var mapped []anyvec.Vector
+	n := in.Len() / m.InSize()
+	for i := 0; i < n; i++ {
+		sub := in.Slice(m.InSize()*i, m.InSize()*(i+1))
+		newSub := in.Creator().MakeVector(m.OutSize())
+		m.Map(sub, newSub)
+		mapped = append(mapped, newSub)
+	}
+	return in.Creator().Concat(mapped...)
+}
+
+func batchMapTranspose(m anyvec.Mapper, in anyvec.Vector) anyvec.Vector {
+	var mapped []anyvec.Vector
+	n := in.Len() / m.OutSize()
+	for i := 0; i < n; i++ {
+		sub := in.Slice(m.OutSize()*i, m.OutSize()*(i+1))
+		newSub := in.Creator().MakeVector(m.InSize())
+		m.MapTranspose(sub, newSub)
+		mapped = append(mapped, newSub)
+	}
+	return in.Creator().Concat(mapped...)
+}

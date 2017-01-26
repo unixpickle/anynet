@@ -14,6 +14,10 @@ func init() {
 // MaxPool is a max-pooling layer.
 //
 // All input and output tensors are row-major depth-minor.
+//
+// If the span along a dimension doesn't divide the
+// corresponding input dimension, then any input values in
+// an "incomplete" pool are ignored.
 type MaxPool struct {
 	SpanX int
 	SpanY int

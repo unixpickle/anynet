@@ -52,25 +52,13 @@ func (p *Padding) Apply(in anydiff.Res, batch int) anydiff.Res {
 	if p.mapper == nil {
 		p.initMapper(in.Output().Creator())
 	}
-
-	inSize := p.mapper.OutSize()
-	if in.Output().Len() != batch*inSize {
+	if in.Output().Len() != batch*p.mapper.OutSize() {
 		panic("incorrect input size")
 	}
-
-	var batchOuts []anyvec.Vector
-	for i := 0; i < batch; i++ {
-		subIn := in.Output().Slice(inSize*i, inSize*(i+1))
-		mappedOut := in.Output().Creator().MakeVector(p.mapper.InSize())
-		p.mapper.MapTranspose(subIn, mappedOut)
-		batchOuts = append(batchOuts, mappedOut)
-	}
-
 	return &paddingRes{
-		N:      batch,
 		In:     in,
 		Mapper: p.mapper,
-		OutVec: in.Output().Creator().Concat(batchOuts...),
+		OutVec: batchMapTranspose(p.mapper, in.Output()),
 	}
 }
 
@@ -112,7 +100,6 @@ func (p *Padding) initMapper(c anyvec.Creator) {
 }
 
 type paddingRes struct {
-	N      int
 	In     anydiff.Res
 	Mapper anyvec.Mapper
 	OutVec anyvec.Vector
@@ -127,16 +114,5 @@ func (p *paddingRes) Vars() anydiff.VarSet {
 }
 
 func (p *paddingRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
-	upSize := u.Len() / p.N
-
-	var downstreams []anyvec.Vector
-	for i := 0; i < p.N; i++ {
-		subU := u.Slice(upSize*i, upSize*(i+1))
-		down := u.Creator().MakeVector(p.Mapper.OutSize())
-		p.Mapper.Map(subU, down)
-		downstreams = append(downstreams, down)
-	}
-
-	fullDown := u.Creator().Concat(downstreams...)
-	p.In.Propagate(fullDown, g)
+	p.In.Propagate(batchMap(p.Mapper, u), g)
 }
