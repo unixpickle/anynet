@@ -53,6 +53,14 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 			InputHeight: inDims.Height,
 			InputDepth:  inDims.Depth,
 		}, nil
+	case *convmarkup.MeanPool:
+		return &MeanPool{
+			SpanX:       b.Width,
+			SpanY:       b.Height,
+			InputWidth:  inDims.Width,
+			InputHeight: inDims.Height,
+			InputDepth:  inDims.Depth,
+		}, nil
 	case *convmarkup.Padding:
 		return &Padding{
 			InputWidth:    inDims.Width,
@@ -74,6 +82,8 @@ func netForChildren(inDims convmarkup.Dims, c anyvec.Creator,
 	for _, x := range ch {
 		if _, ok := x.(*convmarkup.Input); ok {
 			inDims = x.OutDims()
+			continue
+		} else if _, ok = x.(*convmarkup.Assert); ok {
 			continue
 		}
 		layer, err := fromMarkupBlock(inDims, c, x)
