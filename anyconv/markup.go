@@ -86,21 +86,21 @@ func netForChildren(inDims convmarkup.Dims, c anyvec.Creator,
 		} else if _, ok = x.(*convmarkup.Assert); ok {
 			continue
 		} else if rep, ok := x.(*convmarkup.Repeat); ok {
-			net, err := netForChildren(inDims, c, rep.Children)
+			for i := 0; i < rep.N; i++ {
+				net, err := netForChildren(inDims, c, rep.Children)
+				if err != nil {
+					return nil, err
+				}
+				res = append(res, net...)
+			}
+		} else {
+			layer, err := fromMarkupBlock(inDims, c, x)
 			if err != nil {
 				return nil, err
 			}
-			for i := 0; i < rep.N; i++ {
-				res = append(res, net...)
-			}
-			continue
+			res = append(res, layer)
+			inDims = x.OutDims()
 		}
-		layer, err := fromMarkupBlock(inDims, c, x)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, layer)
-		inDims = x.OutDims()
 	}
 	return res, nil
 }
