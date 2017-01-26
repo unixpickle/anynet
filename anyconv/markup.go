@@ -77,13 +77,22 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 }
 
 func netForChildren(inDims convmarkup.Dims, c anyvec.Creator,
-	ch []convmarkup.Block) (anynet.Layer, error) {
+	ch []convmarkup.Block) (anynet.Net, error) {
 	var res anynet.Net
 	for _, x := range ch {
 		if _, ok := x.(*convmarkup.Input); ok {
 			inDims = x.OutDims()
 			continue
 		} else if _, ok = x.(*convmarkup.Assert); ok {
+			continue
+		} else if rep, ok := x.(*convmarkup.Repeat); ok {
+			net, err := netForChildren(inDims, c, rep.Children)
+			if err != nil {
+				return nil, err
+			}
+			for i := 0; i < rep.N; i++ {
+				res = append(res, net...)
+			}
 			continue
 		}
 		layer, err := fromMarkupBlock(inDims, c, x)
