@@ -48,6 +48,16 @@ func (r *Residual) Apply(in anydiff.Res, batch int) anydiff.Res {
 	return anydiff.Add(orig, mainOut)
 }
 
+// Parameters returns the joined parameters of the Layer
+// and (if applicable) the Projection.
+func (r *Residual) Parameters() []*anydiff.Var {
+	n := anynet.Net{r.Layer}
+	if r.Projection != nil {
+		n = append(n, r.Projection)
+	}
+	return n.Parameters()
+}
+
 // SerializerType returns the unique ID used to serialize
 // a Residual with the serializer package.
 func (r *Residual) SerializerType() string {
