@@ -40,12 +40,14 @@ func DeserializeResidual(d []byte) (*Residual, error) {
 
 // Apply applies the layer.
 func (r *Residual) Apply(in anydiff.Res, batch int) anydiff.Res {
-	mainOut := r.Layer.Apply(in, batch)
-	orig := in
-	if r.Projection != nil {
-		orig = r.Projection.Apply(in, batch)
-	}
-	return anydiff.Add(orig, mainOut)
+	return anydiff.Pool(in, func(in anydiff.Res) anydiff.Res {
+		mainOut := r.Layer.Apply(in, batch)
+		orig := in
+		if r.Projection != nil {
+			orig = r.Projection.Apply(in, batch)
+		}
+		return anydiff.Add(orig, mainOut)
+	})
 }
 
 // Parameters returns the joined parameters of the Layer
