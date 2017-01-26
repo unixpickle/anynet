@@ -30,8 +30,8 @@ type MeanPool struct {
 
 // DeserializeMeanPool deserializes a MeanPool.
 func DeserializeMeanPool(d []byte) (*MeanPool, error) {
-	var mp MaxPool
-	if err := serializer.DeserializeAny(d); err != nil {
+	mp, err := DeserializeMaxPool(d)
+	if err != nil {
 		return nil, err
 	}
 	return &MeanPool{
