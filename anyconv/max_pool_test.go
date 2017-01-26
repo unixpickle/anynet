@@ -37,6 +37,8 @@ func TestMaxPoolOutput(t *testing.T) {
 	mp := &MaxPool{
 		SpanX:       3,
 		SpanY:       2,
+		StrideX:     2,
+		StrideY:     1,
 		InputWidth:  15,
 		InputHeight: 13,
 		InputDepth:  4,
@@ -65,6 +67,8 @@ func TestMaxPoolProp(t *testing.T) {
 	layer := &MaxPool{
 		SpanX:       3,
 		SpanY:       2,
+		StrideX:     2,
+		StrideY:     1,
 		InputWidth:  15,
 		InputHeight: 13,
 		InputDepth:  4,
@@ -86,8 +90,8 @@ func TestMaxPoolProp(t *testing.T) {
 
 func naiveMaxPool(m *MaxPool, img []float32) []float32 {
 	var res []float32
-	for y := 0; y+m.SpanY <= m.InputHeight; y += m.SpanY {
-		for x := 0; x+m.SpanX <= m.InputWidth; x += m.SpanX {
+	for y := 0; y+m.SpanY <= m.InputHeight; y += m.StrideY {
+		for x := 0; x+m.SpanX <= m.InputWidth; x += m.StrideX {
 			for z := 0; z < m.InputDepth; z++ {
 				res = append(res, maxInRegion(m, x, y, z, img))
 			}

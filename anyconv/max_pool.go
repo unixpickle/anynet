@@ -19,8 +19,15 @@ func init() {
 // corresponding input dimension, then any input values in
 // an "incomplete" pool are ignored.
 type MaxPool struct {
+	// Span is equivalent to a convolutional layer's filter
+	// size.
 	SpanX int
 	SpanY int
+
+	// Stride is equivalent to a convolutional layer's
+	// stride.
+	StrideX int
+	StrideY int
 
 	InputWidth  int
 	InputHeight int
@@ -31,13 +38,22 @@ type MaxPool struct {
 
 // DeserializeMaxPool deserializes a MaxPool.
 func DeserializeMaxPool(d []byte) (*MaxPool, error) {
-	var sX, sY, iW, iH, iD serializer.Int
-	if err := serializer.DeserializeAny(d, &sX, &sY, &iW, &iH, &iD); err != nil {
-		return nil, err
+	var sX, sY, iW, iH, iD, strideX, strideY serializer.Int
+	err := serializer.DeserializeAny(d, &sX, &sY, &iW, &iH, &iD, &strideX, &strideY)
+	if err != nil {
+		// Legacy format did not store strideX and strideY.
+		err = serializer.DeserializeAny(d, &sX, &sY, &iW, &iH, &iD)
+		if err != nil {
+			return nil, err
+		}
+		strideX = sX
+		strideY = sY
 	}
 	return &MaxPool{
 		SpanX:       int(sX),
 		SpanY:       int(sY),
+		StrideX:     int(strideX),
+		StrideY:     int(strideY),
 		InputWidth:  int(iW),
 		InputHeight: int(iH),
 		InputDepth:  int(iD),
@@ -108,14 +124,16 @@ func (m *MaxPool) Serialize() ([]byte, error) {
 		serializer.Int(m.InputWidth),
 		serializer.Int(m.InputHeight),
 		serializer.Int(m.InputDepth),
+		serializer.Int(m.StrideX),
+		serializer.Int(m.StrideY),
 	)
 }
 
 func (m *MaxPool) initIm2Col(cr anyvec.Creator) {
 	var mapping []int
 
-	for y := 0; y+m.SpanY <= m.InputHeight; y += m.SpanY {
-		for x := 0; x+m.SpanX <= m.InputWidth; x += m.SpanX {
+	for y := 0; y+m.SpanY <= m.InputHeight; y += m.StrideY {
+		for x := 0; x+m.SpanX <= m.InputWidth; x += m.StrideX {
 			for subZ := 0; subZ < m.InputDepth; subZ++ {
 				for subY := 0; subY < m.SpanY; subY++ {
 					subYIdx := (y + subY) * m.InputWidth * m.InputDepth
@@ -137,8 +155,8 @@ func (m *MaxPool) surrogateConv() *Conv {
 		FilterCount:  m.InputDepth,
 		FilterWidth:  m.SpanX,
 		FilterHeight: m.SpanY,
-		StrideX:      m.SpanX,
-		StrideY:      m.SpanY,
+		StrideX:      m.StrideX,
+		StrideY:      m.StrideY,
 		InputWidth:   m.InputWidth,
 		InputHeight:  m.InputHeight,
 		InputDepth:   m.InputDepth,

@@ -16,6 +16,8 @@ func TestMeanPoolSerialize(t *testing.T) {
 	mp := &MeanPool{
 		SpanX:       3,
 		SpanY:       2,
+		StrideX:     4,
+		StrideY:     5,
 		InputWidth:  15,
 		InputHeight: 13,
 		InputDepth:  4,
@@ -37,6 +39,8 @@ func TestMeanPoolOutput(t *testing.T) {
 	mp := &MeanPool{
 		SpanX:       3,
 		SpanY:       2,
+		StrideX:     2,
+		StrideY:     1,
 		InputWidth:  15,
 		InputHeight: 13,
 		InputDepth:  4,
@@ -65,6 +69,8 @@ func TestMeanPoolProp(t *testing.T) {
 	layer := &MeanPool{
 		SpanX:       3,
 		SpanY:       2,
+		StrideX:     2,
+		StrideY:     2,
 		InputWidth:  15,
 		InputHeight: 13,
 		InputDepth:  4,
@@ -84,8 +90,8 @@ func TestMeanPoolProp(t *testing.T) {
 
 func naiveMeanPool(m *MeanPool, img []float32) []float32 {
 	var res []float32
-	for y := 0; y < m.InputHeight; y += m.SpanY {
-		for x := 0; x < m.InputWidth; x += m.SpanX {
+	for y := 0; y+m.SpanY <= m.InputHeight; y += m.StrideY {
+		for x := 0; x+m.SpanX <= m.InputWidth; x += m.StrideX {
 			for z := 0; z < m.InputDepth; z++ {
 				res = append(res, meanInRegion(m, x, y, z, img))
 			}
