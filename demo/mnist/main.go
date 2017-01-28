@@ -39,7 +39,7 @@ func main() {
 		Fetcher:     t,
 		Gradienter:  t,
 		Transformer: &anysgd.Adam{},
-		Samples:     trainingSet(),
+		Samples:     mnist.LoadTrainingDataSet().AnyNetSamples(Creator),
 		Rater:       anysgd.ConstRater(0.001),
 		StatusFunc: func(b anysgd.Batch) {
 			log.Printf("iter %d: cost=%v", iterNum, t.LastCost)
@@ -53,23 +53,6 @@ func main() {
 
 	log.Println("Computing statistics...")
 	printStats(network)
-}
-
-func trainingSet() anyff.SampleList {
-	ts := mnist.LoadTrainingDataSet()
-	slice := make(anyff.SliceSampleList, len(ts.Samples))
-
-	intensities := ts.IntensityVectors()
-	labels := ts.LabelVectors()
-
-	for i, intens := range intensities {
-		label := labels[i]
-		inVec := Creator.MakeVectorData(Creator.MakeNumericList(intens))
-		outVec := Creator.MakeVectorData(Creator.MakeNumericList(label))
-		slice[i] = &anyff.Sample{Input: inVec, Output: outVec}
-	}
-
-	return slice
 }
 
 func printStats(net anynet.Net) {
