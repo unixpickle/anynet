@@ -56,7 +56,11 @@ func (m MSE) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 
 // SigmoidCE combines a sigmoid output activation with
 // cross-entropy loss.
-type SigmoidCE struct{}
+type SigmoidCE struct {
+	// Average indicates whether or not the cross-entropy
+	// cost should be an average rather than a sum.
+	Average bool
+}
 
 // Cost is mathematically equivalent to applying the
 // sigmoid to each component of actual, then finding the
@@ -65,7 +69,18 @@ func (s SigmoidCE) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	minusOne := actual.Output().Creator().MakeNumeric(-1)
 	logRegular := anydiff.LogSigmoid(actual)
 	logComplement := anydiff.LogSigmoid(anydiff.Scale(actual, minusOne))
-	regularProd := anydiff.Mul(desired, logRegular)
-	compProd := anydiff.Mul(anydiff.Complement(desired), logComplement)
-	return anydiff.Add(anydiff.Sum(regularProd), anydiff.Sum(compProd))
+	costProducts := anydiff.Add(
+		anydiff.Mul(desired, logRegular),
+		anydiff.Mul(anydiff.Complement(desired), logComplement),
+	)
+	res := anydiff.SumCols(&anydiff.Matrix{
+		Data: costProducts,
+		Rows: n,
+		Cols: actual.Output().Len() / n,
+	})
+	d := -1.0
+	if s.Average {
+		d /= float64(actual.Output().Len() / n)
+	}
+	return anydiff.Scale(res, res.Output().Creator().MakeNumeric(d))
 }
