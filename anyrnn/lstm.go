@@ -80,6 +80,20 @@ func NewLSTMZero(c anyvec.Creator, in, state int) *LSTM {
 	}
 }
 
+// ScaleInWeights is a convenience method that scales up
+// the values in the input transformations.
+// This is useful when using sparse inputs to the LSTM, as
+// it can be helpful to increase the input's effect on the
+// LSTM's output.
+//
+// The LSTM is returned for convenience.
+func (l *LSTM) ScaleInWeights(scaler anyvec.Numeric) *LSTM {
+	for _, gate := range []*LSTMGate{l.InValue, l.In, l.Remember, l.Output} {
+		gate.InputWeights.Vector.Scale(scaler)
+	}
+	return l
+}
+
 // Start returns the start state for the RNN.
 func (l *LSTM) Start(n int) State {
 	return &LSTMState{
