@@ -9,8 +9,6 @@
  * anyrnn
    * Tests for LSTM outputs
    * GRU
- * anynet
-   * Dropout
  * anysgd
    * RMSProp
    * Momentum

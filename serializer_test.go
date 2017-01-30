@@ -70,6 +70,21 @@ func TestAffineSerialize(t *testing.T) {
 	}
 }
 
+func TestDropoutSerialize(t *testing.T) {
+	do := &Dropout{Enabled: true, KeepProb: 0.335}
+	data, err := serializer.SerializeAny(do)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var do1 *Dropout
+	if err := serializer.DeserializeAny(data, &do1); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(do, do1) {
+		t.Fatal("incorrect result")
+	}
+}
+
 func TestNetSerialize(t *testing.T) {
 	net := Net{Tanh, LogSoftmax}
 	data, err := serializer.SerializeAny(net)
