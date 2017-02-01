@@ -153,6 +153,10 @@ func layerForActivationBlock(inDims convmarkup.Dims, c anyvec.Creator,
 		return NewBatchNorm(c, inDims.Depth), nil
 	case "ReLU":
 		return anynet.ReLU, nil
+	case "Sigmoid":
+		return anynet.Sigmoid, nil
+	case "Tanh":
+		return anynet.Tanh, nil
 	case "Softmax":
 		return anynet.LogSoftmax, nil
 	default:
