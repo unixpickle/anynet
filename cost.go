@@ -67,12 +67,16 @@ type SigmoidCE struct {
 // cross-entropy loss.
 func (s SigmoidCE) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	minusOne := actual.Output().Creator().MakeNumeric(-1)
-	logRegular := anydiff.LogSigmoid(actual)
-	logComplement := anydiff.LogSigmoid(anydiff.Scale(actual, minusOne))
-	costProducts := anydiff.Add(
-		anydiff.Mul(desired, logRegular),
-		anydiff.Mul(anydiff.Complement(desired), logComplement),
-	)
+	costProducts := anydiff.Pool(desired, func(desired anydiff.Res) anydiff.Res {
+		return anydiff.Pool(actual, func(actual anydiff.Res) anydiff.Res {
+			logRegular := anydiff.LogSigmoid(actual)
+			logComplement := anydiff.LogSigmoid(anydiff.Scale(actual, minusOne))
+			return anydiff.Add(
+				anydiff.Mul(desired, logRegular),
+				anydiff.Mul(anydiff.Complement(desired), logComplement),
+			)
+		})
+	})
 	res := anydiff.SumCols(&anydiff.Matrix{
 		Data: costProducts,
 		Rows: n,
