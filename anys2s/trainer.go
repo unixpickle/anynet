@@ -90,16 +90,11 @@ func (t *Trainer) TotalCost(b *Batch) anydiff.Res {
 //
 // The b argument must be a *Batch.
 func (t *Trainer) Gradient(b anysgd.Batch) anydiff.Grad {
-	res := anydiff.Grad{}
-	for _, p := range t.Params {
-		res[p] = p.Vector.Creator().MakeVector(p.Vector.Len())
-	}
+	res := anydiff.NewGrad(t.Params...)
 
 	cost := t.TotalCost(b.(*Batch))
 	t.LastCost = anyvec.Sum(cost.Output())
 
-	// Scale the upstream vector so that it's as if we took
-	// the average of the cost.
 	c := cost.Output().Creator()
 	data := c.MakeNumericList([]float64{1})
 	upstream := cost.Output().Creator().MakeVectorData(data)
