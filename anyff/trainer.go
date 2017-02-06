@@ -85,7 +85,7 @@ func (t *Trainer) Gradient(b anysgd.Batch) anydiff.Grad {
 
 	c := cost.Output().Creator()
 	data := c.MakeNumericList([]float64{1})
-	upstream := cost.Output().Creator().MakeVectorData(data)
+	upstream := c.MakeVectorData(data)
 	cost.Propagate(upstream, res)
 
 	return res
