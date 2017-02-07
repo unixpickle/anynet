@@ -9,6 +9,9 @@ import (
 // transform a state-input pair into a state-output pair.
 type FuncBlock struct {
 	// Func applies the block.
+	//
+	// If out is nil, newState is used as the output of the
+	// block as well as the state.
 	Func func(in, state anydiff.Res, batch int) (out, newState anydiff.Res)
 
 	// MakeStart produces the initial state vector.
@@ -45,7 +48,10 @@ func (f *FuncBlock) Step(s State, in anyvec.Vector) Res {
 	statePool := anydiff.NewVar(fs.Vector)
 	out, state := f.Func(inPool, statePool, s.Present().NumPresent())
 	stateVars := anydiff.MergeVarSets(fs.V, state.Vars())
-	allVars := anydiff.MergeVarSets(stateVars, out.Vars())
+	allVars := stateVars
+	if out != nil {
+		allVars = anydiff.MergeVarSets(allVars, out.Vars())
+	}
 	for _, x := range []anydiff.VarSet{stateVars, allVars} {
 		x.Del(inPool)
 		x.Del(statePool)
@@ -108,7 +114,11 @@ func (f *funcBlockRes) State() State {
 }
 
 func (f *funcBlockRes) Output() anyvec.Vector {
-	return f.OutRes.Output()
+	if f.OutRes != nil {
+		return f.OutRes.Output()
+	} else {
+		return f.StateRes.Output()
+	}
 }
 
 func (f *funcBlockRes) Vars() anydiff.VarSet {
@@ -120,10 +130,17 @@ func (f *funcBlockRes) Propagate(u anyvec.Vector, s StateGrad,
 	c := f.InPool.Vector.Creator()
 	g[f.InPool] = c.MakeVector(f.InPool.Output().Len())
 	g[f.StatePool] = c.MakeVector(f.StatePool.Output().Len())
-	f.OutRes.Propagate(u, g)
-	if s != nil {
-		v := s.(*FuncBlockState).Vector
-		f.StateRes.Propagate(v, g)
+	if f.OutRes != nil {
+		f.OutRes.Propagate(u, g)
+		if s != nil {
+			v := s.(*FuncBlockState).Vector
+			f.StateRes.Propagate(v, g)
+		}
+	} else {
+		if s != nil {
+			u.Add(s.(*FuncBlockState).Vector)
+		}
+		f.StateRes.Propagate(u, g)
 	}
 	inGrad := g[f.InPool]
 	stateGrad := g[f.StatePool]

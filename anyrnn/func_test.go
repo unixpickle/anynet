@@ -45,3 +45,34 @@ func TestFuncBlock(t *testing.T) {
 	}
 	checker.FullCheck(t)
 }
+
+func TestFuncBlockNilOut(t *testing.T) {
+	c := anyvec32.CurrentCreator()
+	inSeq, inVars := randomTestSequence(3)
+	fcBlock := anynet.NewFC(c, 3, 3)
+	startState := anydiff.NewVar(c.MakeVector(3))
+	anyvec.Rand(startState.Vector, anyvec.Normal, nil)
+
+	params := append(append(inVars, fcBlock.Parameters()...), startState)
+
+	block := &FuncBlock{
+		Func: func(in, state anydiff.Res, n int) (out, newState anydiff.Res) {
+			return nil, anynet.Tanh.Apply(anydiff.Add(
+				fcBlock.Apply(in, n),
+				fcBlock.Apply(state, n),
+			), n)
+		},
+		MakeStart: func(n int) anydiff.Res {
+			zeroVec := anydiff.NewConst(c.MakeVector(n * startState.Vector.Len()))
+			return anydiff.AddRepeated(zeroVec, startState)
+		},
+	}
+
+	checker := &anydifftest.SeqChecker{
+		F: func() anyseq.Seq {
+			return Map(inSeq, block)
+		},
+		V: params,
+	}
+	checker.FullCheck(t)
+}
