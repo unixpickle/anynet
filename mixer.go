@@ -21,24 +21,24 @@ type Mixer interface {
 // each of them, adding the results together, and then
 // applying an output layer to the sum.
 type AddMixer struct {
-	In1      Layer
-	In2      Layer
-	OutTrans Layer
+	In1 Layer
+	In2 Layer
+	Out Layer
 }
 
 // DeserializeAddMixer deserializes an AddMixer.
 func DeserializeAddMixer(d []byte) (*AddMixer, error) {
 	var res AddMixer
-	if err := serializer.DeserializeAny(d, &res.In1, &res.In2, &res.OutTrans); err != nil {
+	if err := serializer.DeserializeAny(d, &res.In1, &res.In2, &res.Out); err != nil {
 		return nil, essentials.AddCtx("deserialize AddMixer", err)
 	}
 	return &res, nil
 }
 
 // Mix applies a.In1 to in1 and a.In2 to in2, then adds
-// the results, then applies a.OutTrans.
+// the results, then applies a.Out.
 func (a *AddMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
-	return a.OutTrans.Apply(anydiff.Add(
+	return a.Out.Apply(anydiff.Add(
 		a.In1.Apply(in1, batch),
 		a.In2.Apply(in2, batch),
 	), batch)
@@ -48,7 +48,7 @@ func (a *AddMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
 // implement Parameterizer.
 func (a *AddMixer) Parameters() []*anydiff.Var {
 	var res []*anydiff.Var
-	for _, v := range []Layer{a.In1, a.In2, a.OutTrans} {
+	for _, v := range []Layer{a.In1, a.In2, a.Out} {
 		if p, ok := v.(Parameterizer); ok {
 			res = append(res, p.Parameters()...)
 		}
@@ -64,5 +64,5 @@ func (a *AddMixer) SerializerType() string {
 
 // Serialize attempts to serialize the AddMixer.
 func (a *AddMixer) Serialize() ([]byte, error) {
-	return serializer.SerializeAny(a.In1, a.In2, a.OutTrans)
+	return serializer.SerializeAny(a.In1, a.In2, a.Out)
 }

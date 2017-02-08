@@ -103,9 +103,9 @@ func TestNetSerialize(t *testing.T) {
 func TestAddMixerSerializer(t *testing.T) {
 	c := anyvec32.DefaultCreator{}
 	a := &AddMixer{
-		In1:      NewFC(c, 5, 3),
-		In2:      NewFC(c, 2, 3),
-		OutTrans: NewFC(c, 3, 1),
+		In1: NewFC(c, 5, 3),
+		In2: NewFC(c, 2, 3),
+		Out: NewFC(c, 3, 1),
 	}
 	data, err := serializer.SerializeAny(a)
 	if err != nil {
