@@ -1,6 +1,15 @@
 package anynet
 
-import "github.com/unixpickle/anydiff"
+import (
+	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/serializer"
+)
+
+func init() {
+	var a AddMixer
+	serializer.RegisterTypedDeserializer(a.SerializerType(), DeserializeAddMixer)
+}
 
 // A Mixer combines batches of inputs from two different
 // sources into a single vector.
@@ -17,6 +26,15 @@ type AddMixer struct {
 	OutTrans Layer
 }
 
+// DeserializeAddMixer deserializes an AddMixer.
+func DeserializeAddMixer(d []byte) (*AddMixer, error) {
+	var res AddMixer
+	if err := serializer.DeserializeAny(d, &res.In1, &res.In2, &res.OutTrans); err != nil {
+		return nil, essentials.AddCtx("deserialize AddMixer", err)
+	}
+	return &res, nil
+}
+
 // Mix applies a.In1 to in1 and a.In2 to in2, then adds
 // the results, then applies a.OutTrans.
 func (a *AddMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
@@ -24,4 +42,27 @@ func (a *AddMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
 		a.In1.Apply(in1, batch),
 		a.In2.Apply(in2, batch),
 	), batch)
+}
+
+// Parameters gets the parameters of all the layers that
+// implement Parameterizer.
+func (a *AddMixer) Parameters() []*anydiff.Var {
+	var res []*anydiff.Var
+	for _, v := range []Layer{a.In1, a.In2, a.OutTrans} {
+		if p, ok := v.(Parameterizer); ok {
+			res = append(res, p.Parameters()...)
+		}
+	}
+	return res
+}
+
+// SerializerType returns the unique ID used to serialize
+// an AddMixer with the serializer package.
+func (a *AddMixer) SerializerType() string {
+	return "github.com/unixpickle/anynet.AddMixer"
+}
+
+// Serialize attempts to serialize the AddMixer.
+func (a *AddMixer) Serialize() ([]byte, error) {
+	return serializer.SerializeAny(a.In1, a.In2, a.OutTrans)
 }
