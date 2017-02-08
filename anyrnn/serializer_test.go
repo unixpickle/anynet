@@ -44,6 +44,20 @@ func TestLSTMSerialize(t *testing.T) {
 	testSerialize(t, NewLSTM(anyvec32.CurrentCreator(), 3, 2))
 }
 
+func TestBidirSerialize(t *testing.T) {
+	c := anyvec32.CurrentCreator()
+	b := &Bidir{
+		Forward:  NewVanilla(c, 5, 3, anynet.Tanh),
+		Backward: NewVanilla(c, 5, 2, anynet.Tanh),
+		Mixer: &anynet.AddMixer{
+			In1: anynet.NewFC(c, 3, 2),
+			In2: anynet.NewFC(c, 2, 2),
+			Out: anynet.Tanh,
+		},
+	}
+	testSerialize(t, b)
+}
+
 func testSerialize(t *testing.T, obj serializer.Serializer) {
 	data, err := serializer.SerializeWithType(obj)
 	if err != nil {
