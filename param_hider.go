@@ -29,7 +29,7 @@ func DeserializeParamHider(d []byte) (*ParamHider, error) {
 
 // Apply applies the layer.
 func (p *ParamHider) Apply(in anydiff.Res, n int) anydiff.Res {
-	return p.Apply(in, n)
+	return p.Layer.Apply(in, n)
 }
 
 // SerializerType returns the unique ID used to serialize
