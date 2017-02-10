@@ -123,3 +123,18 @@ func TestAddMixerSerializer(t *testing.T) {
 		t.Error("incorrect result")
 	}
 }
+
+func TestParamHiderSerialize(t *testing.T) {
+	net := &ParamHider{Layer: Tanh}
+	data, err := serializer.SerializeAny(net)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var net1 *ParamHider
+	if err := serializer.DeserializeAny(data, &net1); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(net, net1) {
+		t.Fatal("incorrect result")
+	}
+}
