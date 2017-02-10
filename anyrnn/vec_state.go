@@ -37,7 +37,7 @@ func (v *VecState) Present() PresentMap {
 // chunks in v.
 func (v *VecState) Reduce(p PresentMap) State {
 	b := &anyseq.Batch{Packed: v.Vector, Present: v.PresentMap}
-	res := anyseq.ReduceBatch(b, p)
+	res := b.Reduce(p)
 	return &VecState{Vector: res.Packed, PresentMap: p}
 }
 
@@ -45,7 +45,7 @@ func (v *VecState) Reduce(p PresentMap) State {
 // where necessary, producing a new *VecState.
 func (v *VecState) Expand(p PresentMap) StateGrad {
 	b := &anyseq.Batch{Packed: v.Vector, Present: v.PresentMap}
-	res := anyseq.ExpandBatch(b, p)
+	res := b.Expand(p)
 	return &VecState{Vector: res.Packed, PresentMap: p}
 }
 
