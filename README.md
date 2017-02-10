@@ -4,8 +4,6 @@
 
 # TODO
 
- * anyff and anys2s
-   * Tests
  * anyrnn
    * Tests for LSTM outputs
    * GRU
