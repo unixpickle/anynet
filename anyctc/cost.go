@@ -6,9 +6,10 @@ import (
 	"github.com/unixpickle/anyvec"
 )
 
-// Cost computes the cost for a batch of output sequences.
-// The cost for each sequence is the negative log
-// likelihood of the corresponding label.
+// Cost computes the negative log likelihood of each label
+// based on the outputs from an RNN.
+// The result is a packed vector with one entry per
+// sequence in the batch.
 //
 // For a sequence, suppose that all of the labels are
 // bounded between 0 and N.

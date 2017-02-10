@@ -53,6 +53,8 @@ func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 }
 
 // TotalCost computes the total cost for the batch.
+//
+// For more information on how this works, see Cost().
 func (t *Trainer) TotalCost(b *Batch) anydiff.Res {
 	actual := t.Func(b.Inputs)
 	costs := Cost(actual, b.Labels)
