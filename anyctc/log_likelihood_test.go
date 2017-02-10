@@ -56,7 +56,7 @@ func TestLogLikelihoodGrad(t *testing.T) {
 			return logLikelihood(c, resSeq, label)
 		},
 		V:     vars,
-		Prec:  testPrecision * 2,
+		Prec:  testPrecision * 3,
 		Delta: testPrecision,
 	}
 	ch.FullCheck(t)
