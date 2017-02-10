@@ -12,4 +12,3 @@
  * anysgd
    * RMSProp
    * Momentum
- * Recurrent attention mechanism
