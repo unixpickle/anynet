@@ -52,5 +52,5 @@ func randomTestSequence(inSize int) (anyseq.Seq, []*anydiff.Var) {
 			inBatches = append(inBatches, batch)
 		}
 	}
-	return anyseq.ResSeq(inBatches), inVars
+	return anyseq.ResSeq(anyvec32.CurrentCreator(), inBatches), inVars
 }

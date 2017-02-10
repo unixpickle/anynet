@@ -20,6 +20,7 @@ type SampleList interface {
 	anysgd.SampleList
 
 	GetSample(idx int) *Sample
+	Creator() anyvec.Creator
 }
 
 // A SliceSampleList is a concrete SampleList with

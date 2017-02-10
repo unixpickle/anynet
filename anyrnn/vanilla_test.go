@@ -36,7 +36,8 @@ func TestVanillaOutput(t *testing.T) {
 		})),
 		Activation: anynet.Tanh,
 	}
-	seq := anyseq.ConstSeq([]*anyseq.Batch{
+	c := anyvec32.CurrentCreator()
+	seq := anyseq.ConstSeq(c, []*anyseq.Batch{
 		{
 			Packed:  anyvec32.MakeVectorData([]float32{1, 2, -1, -3}),
 			Present: []bool{true, true, false},

@@ -49,8 +49,8 @@ func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 		outs[i] = sample.Output
 	}
 	return &Batch{
-		Inputs:  anyseq.ConstSeqList(ins),
-		Outputs: anyseq.ConstSeqList(outs),
+		Inputs:  anyseq.ConstSeqList(l.Creator(), ins),
+		Outputs: anyseq.ConstSeqList(l.Creator(), outs),
 	}, nil
 }
 

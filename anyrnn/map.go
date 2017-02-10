@@ -3,6 +3,7 @@ package anyrnn
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anyseq"
+	"github.com/unixpickle/anyvec"
 )
 
 type mapRes struct {
@@ -20,7 +21,7 @@ type mapRes struct {
 func Map(s anyseq.Seq, b Block) anyseq.Seq {
 	inSteps := s.Output()
 	if len(inSteps) == 0 {
-		return &mapRes{}
+		return &mapRes{In: s}
 	}
 
 	state := b.Start(len(inSteps[0].Present))
@@ -38,7 +39,7 @@ func Map(s anyseq.Seq, b Block) anyseq.Seq {
 func MapWithStart(s anyseq.Seq, b Block, state State, f func(StateGrad, anydiff.Grad)) anyseq.Seq {
 	inSteps := s.Output()
 	if len(inSteps) == 0 {
-		return &mapRes{}
+		return &mapRes{In: s}
 	}
 
 	initPres := state.Present()
@@ -62,6 +63,10 @@ func MapWithStart(s anyseq.Seq, b Block, state State, f func(StateGrad, anydiff.
 	}
 
 	return res
+}
+
+func (m *mapRes) Creator() anyvec.Creator {
+	return m.In.Creator()
 }
 
 func (m *mapRes) Output() []*anyseq.Batch {
