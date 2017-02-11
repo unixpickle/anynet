@@ -1,10 +1,13 @@
 package anyff
 
 import (
+	"errors"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 )
 
 // A Batch stores an input and output batch in a packed
@@ -38,13 +41,16 @@ type Trainer struct {
 // The batch may not be empty.
 func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	if s.Len() == 0 {
-		panic("empty batch")
+		return nil, errors.New("fetch batch: empty batch")
 	}
 
 	l := s.(SampleList)
 	var ins, outs []anyvec.Vector
 	for i := 0; i < l.Len(); i++ {
-		sample := l.GetSample(i)
+		sample, err := l.GetSample(i)
+		if err != nil {
+			return nil, essentials.AddCtx("fetch batch", err)
+		}
 		ins = append(ins, sample.Input)
 		outs = append(outs, sample.Output)
 	}

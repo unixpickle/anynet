@@ -1,10 +1,13 @@
 package anyctc
 
 import (
+	"errors"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 )
 
 // A Batch stores a batch of input sequences and the
@@ -36,13 +39,16 @@ type Trainer struct {
 // The batch may not be empty.
 func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	if s.Len() == 0 {
-		panic("empty batch")
+		return nil, errors.New("fetch batch: empty batch")
 	}
 	l := s.(SampleList)
 	ins := make([][]anyvec.Vector, l.Len())
 	outs := make([][]int, l.Len())
 	for i := 0; i < l.Len(); i++ {
-		sample := l.GetSample(i)
+		sample, err := l.GetSample(i)
+		if err != nil {
+			return nil, essentials.AddCtx("fetch batch", err)
+		}
 		ins[i] = sample.Input
 		outs[i] = sample.Label
 	}

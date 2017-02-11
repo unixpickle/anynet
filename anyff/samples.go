@@ -18,7 +18,7 @@ type Sample struct {
 type SampleList interface {
 	anysgd.SampleList
 
-	GetSample(idx int) *Sample
+	GetSample(idx int) (*Sample, error)
 }
 
 // A SliceSampleList is a concrete SampleList with
@@ -41,6 +41,6 @@ func (s SliceSampleList) Slice(i, j int) anysgd.SampleList {
 }
 
 // GetSample returns the sample at the index.
-func (s SliceSampleList) GetSample(idx int) *Sample {
-	return s[idx]
+func (s SliceSampleList) GetSample(idx int) (*Sample, error) {
+	return s[idx], nil
 }
