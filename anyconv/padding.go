@@ -3,6 +3,7 @@ package anyconv
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -31,7 +32,7 @@ func DeserializePadding(d []byte) (*Padding, error) {
 	var inW, inH, inD, pT, pR, pB, pL serializer.Int
 	err := serializer.DeserializeAny(d, &inW, &inH, &inD, &pT, &pR, &pB, &pL)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Padding", err)
 	}
 	return &Padding{
 		InputWidth:  int(inW),

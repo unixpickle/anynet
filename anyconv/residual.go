@@ -3,6 +3,7 @@ package anyconv
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -29,7 +30,7 @@ func DeserializeResidual(d []byte) (*Residual, error) {
 	var layer anynet.Layer
 	var proj anynet.Net
 	if err := serializer.DeserializeAny(d, &layer, &proj); err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Residual", err)
 	}
 	res := &Residual{Layer: layer}
 	if len(proj) == 1 {

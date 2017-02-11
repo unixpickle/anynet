@@ -8,6 +8,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -28,12 +29,12 @@ type FC struct {
 func DeserializeFC(d []byte) (*FC, error) {
 	var weights, biases *anyvecsave.S
 	if err := serializer.DeserializeAny(d, &weights, &biases); err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize FC", err)
 	}
 	inCount := weights.Vector.Len() / biases.Vector.Len()
 	outCount := biases.Vector.Len()
 	if inCount*outCount != weights.Vector.Len() {
-		return nil, errors.New("invalid matrix dimensions")
+		return nil, errors.New("deserialize FC: invalid matrix dimensions")
 	}
 	return &FC{
 		InCount:  inCount,

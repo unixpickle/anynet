@@ -3,6 +3,7 @@ package anynet
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -29,7 +30,7 @@ type Affine struct {
 func DeserializeAffine(d []byte) (*Affine, error) {
 	var s, b *anyvecsave.S
 	if err := serializer.DeserializeAny(d, &s, &b); err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Affine", err)
 	}
 	return &Affine{
 		Scalers: anydiff.NewVar(s.Vector),

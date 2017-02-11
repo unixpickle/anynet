@@ -3,6 +3,7 @@ package anynet
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -26,7 +27,7 @@ func DeserializeDropout(d []byte) (*Dropout, error) {
 	var enabled serializer.Int
 	var keepProb serializer.Float64
 	if err := serializer.DeserializeAny(d, &enabled, &keepProb); err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Dropout", err)
 	}
 	return &Dropout{
 		Enabled:  enabled == 1,

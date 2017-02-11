@@ -3,6 +3,7 @@ package anyconv
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -44,7 +45,7 @@ func DeserializeMaxPool(d []byte) (*MaxPool, error) {
 		// Legacy format did not store strideX and strideY.
 		err = serializer.DeserializeAny(d, &sX, &sY, &iW, &iH, &iD)
 		if err != nil {
-			return nil, err
+			return nil, essentials.AddCtx("deserialize MaxPool", err)
 		}
 		strideX = sX
 		strideY = sY

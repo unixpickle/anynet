@@ -6,6 +6,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -25,10 +26,10 @@ type LayerBlock struct {
 func DeserializeLayerBlock(d []byte) (*LayerBlock, error) {
 	n, err := anynet.DeserializeNet(d)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize LayerBlock", err)
 	}
 	if len(n) != 1 {
-		return nil, errors.New("deserialized multiple Layers for LayerBlock")
+		return nil, errors.New("deserialize LayerBlock: multiple Layers")
 	}
 	return &LayerBlock{Layer: n[0]}, nil
 }

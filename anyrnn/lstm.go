@@ -5,6 +5,7 @@ import (
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -36,7 +37,7 @@ func DeserializeLSTM(d []byte) (*LSTM, error) {
 	err := serializer.DeserializeAny(d, &inVal, &in, &rem, &out, &outSquash,
 		&initLast, &initInt)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize LSTM", err)
 	}
 	return &LSTM{
 		InValue:      inVal,

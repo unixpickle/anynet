@@ -6,6 +6,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -25,14 +26,14 @@ type Stack []Block
 func DeserializeStack(d []byte) (Stack, error) {
 	blockSlice, err := serializer.DeserializeSlice(d)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Stack", err)
 	}
 	res := make(Stack, len(blockSlice))
 	for i, x := range blockSlice {
 		if b, ok := x.(Block); ok {
 			res[i] = b
 		} else {
-			return nil, fmt.Errorf("type is not a Block: %T", x)
+			return nil, fmt.Errorf("deserialize Stack: type is not a Block: %T", x)
 		}
 	}
 	return res, nil

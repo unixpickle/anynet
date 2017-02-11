@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -44,14 +45,14 @@ type Net []Layer
 func DeserializeNet(d []byte) (Net, error) {
 	slice, err := serializer.DeserializeSlice(d)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Net", err)
 	}
 	res := make(Net, len(slice))
 	for i, x := range slice {
 		if layer, ok := x.(Layer); ok {
 			res[i] = layer
 		} else {
-			return nil, fmt.Errorf("not a Layer: %T", x)
+			return nil, fmt.Errorf("deserialize Net: not a Layer: %T", x)
 		}
 	}
 	return res, nil

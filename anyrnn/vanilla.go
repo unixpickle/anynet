@@ -8,6 +8,7 @@ import (
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -38,7 +39,10 @@ type Vanilla struct {
 }
 
 // DeserializeVanilla deserializes a Vanilla block.
-func DeserializeVanilla(d []byte) (*Vanilla, error) {
+func DeserializeVanilla(d []byte) (v *Vanilla, err error) {
+	defer func() {
+		err = essentials.AddCtx("deserialize Vanilla", err)
+	}()
 	var stW, inW, b, start *anyvecsave.S
 	var a anynet.Layer
 	if err := serializer.DeserializeAny(d, &stW, &inW, &b, &start, &a); err != nil {

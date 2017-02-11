@@ -4,6 +4,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -44,7 +45,7 @@ func DeserializeBatchNorm(d []byte) (*BatchNorm, error) {
 	var s, b *anyvecsave.S
 	var stab serializer.Float64
 	if err := serializer.DeserializeAny(d, &s, &b, &stab); err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize BatchNorm", err)
 	}
 	return &BatchNorm{
 		InputCount: s.Vector.Len(),

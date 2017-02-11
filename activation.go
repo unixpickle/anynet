@@ -27,11 +27,11 @@ const (
 // DeserializeActivation deserializes an Activation.
 func DeserializeActivation(d []byte) (Activation, error) {
 	if len(d) != 1 {
-		return 0, fmt.Errorf("data length (%d) should be 1", len(d))
+		return 0, fmt.Errorf("deserialize Activation: data length (%d) should be 1", len(d))
 	}
 	a := Activation(d[0])
 	if a > Sin {
-		return 0, fmt.Errorf("unknown activation ID: %d", a)
+		return 0, fmt.Errorf("deserialize Activation: unknown activation ID: %d", a)
 	}
 	return a, nil
 }

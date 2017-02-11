@@ -3,6 +3,7 @@ package anyconv
 import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -32,7 +33,7 @@ type MeanPool struct {
 func DeserializeMeanPool(d []byte) (*MeanPool, error) {
 	mp, err := DeserializeMaxPool(d)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize MeanPool", err)
 	}
 	return &MeanPool{
 		SpanX:       mp.SpanX,

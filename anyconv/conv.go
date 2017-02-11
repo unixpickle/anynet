@@ -9,6 +9,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
 
@@ -44,7 +45,7 @@ func DeserializeConv(d []byte) (*Conv, error) {
 	var f, b *anyvecsave.S
 	err := serializer.DeserializeAny(d, &inW, &inH, &inD, &fW, &fH, &sX, &sY, &f, &b)
 	if err != nil {
-		return nil, err
+		return nil, essentials.AddCtx("deserialize Conv", err)
 	}
 	return &Conv{
 		FilterCount:  f.Vector.Len() / int(fW*fH*inD),

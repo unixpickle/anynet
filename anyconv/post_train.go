@@ -8,6 +8,7 @@ import (
 	"github.com/unixpickle/anynet/anyff"
 	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
 )
 
 // A PostTrainer uses a list of samples to replace
@@ -39,7 +40,7 @@ func (p *PostTrainer) Run() error {
 		preNet := p.Net[:i]
 		mean, stddev, err := momentsFromOutputs(bn, p.evaluateBatch(preNet))
 		if err != nil {
-			return err
+			return essentials.AddCtx("post train", err)
 		}
 		scaler := bn.Scalers.Vector.Copy()
 		scaler.Div(stddev)
