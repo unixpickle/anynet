@@ -2,13 +2,36 @@ package anyconv
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/serializer"
 )
+
+func TestResizeSerialize(t *testing.T) {
+	r := &Resize{
+		Depth:        1,
+		InputWidth:   2,
+		InputHeight:  3,
+		OutputWidth:  4,
+		OutputHeight: 5,
+	}
+	data, err := serializer.SerializeAny(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newR *Resize
+	if err := serializer.DeserializeAny(data, &newR); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(newR, r) {
+		t.Error("incorrect result")
+	}
+}
 
 func TestResizeOut(t *testing.T) {
 	r := &Resize{
