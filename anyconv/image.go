@@ -37,7 +37,7 @@ func ImageToTensor(c anyvec.Creator, img image.Image) anyvec.Vector {
 //
 // The anyvec.NumericList type must be []float32 or
 // []float64.
-func TensorToImage(c anyvec.Creator, width, height int, v anyvec.Vector) image.Image {
+func TensorToImage(width, height int, v anyvec.Vector) image.Image {
 	var rawData []float64
 	switch data := v.Data().(type) {
 	case []float64:

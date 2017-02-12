@@ -16,7 +16,7 @@ func TestImageConversion(t *testing.T) {
 	inImg.SetRGBA(2, 2, color.RGBA{R: 0x5, G: 0x37, B: 0x66, A: 0xff})
 
 	tensor := ImageToTensor(anyvec32.CurrentCreator(), inImg)
-	outImg := TensorToImage(anyvec32.CurrentCreator(), 2, 2, tensor)
+	outImg := TensorToImage(2, 2, tensor)
 
 	for x := 0; x < 2; x++ {
 		for y := 0; y < 2; y++ {
