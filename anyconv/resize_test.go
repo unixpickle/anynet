@@ -12,11 +12,11 @@ import (
 
 func TestResizeOut(t *testing.T) {
 	r := &Resize{
-		Depth:     2,
-		InWidth:   2,
-		InHeight:  2,
-		OutWidth:  3,
-		OutHeight: 4,
+		Depth:        2,
+		InputWidth:   2,
+		InputHeight:  2,
+		OutputWidth:  3,
+		OutputHeight: 4,
 	}
 	img := anyvec32.MakeVectorData([]float32{
 		0.5, 0.4, 0.3, 0.2,
@@ -42,11 +42,11 @@ func TestResizeOut(t *testing.T) {
 
 func TestResizeProp(t *testing.T) {
 	r := &Resize{
-		Depth:     3,
-		InWidth:   4,
-		InHeight:  7,
-		OutWidth:  6,
-		OutHeight: 6,
+		Depth:        3,
+		InputWidth:   4,
+		InputHeight:  7,
+		OutputWidth:  6,
+		OutputHeight: 6,
 	}
 	img := anyvec32.MakeVector(4 * 7 * 3 * 2)
 	anyvec.Rand(img, anyvec.Normal, nil)

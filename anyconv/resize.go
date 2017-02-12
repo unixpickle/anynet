@@ -17,10 +17,10 @@ func init() {
 type Resize struct {
 	Depth int
 
-	InWidth   int
-	InHeight  int
-	OutWidth  int
-	OutHeight int
+	InputWidth   int
+	InputHeight  int
+	OutputWidth  int
+	OutputHeight int
 
 	neighborMap     anyvec.Mapper
 	neighborWeights anyvec.Vector
@@ -34,11 +34,11 @@ func DeserializeResize(d []byte) (*Resize, error) {
 		return nil, essentials.AddCtx("deserialize Resize", err)
 	}
 	return &Resize{
-		Depth:     int(depth),
-		InWidth:   int(inW),
-		InHeight:  int(inH),
-		OutWidth:  int(outW),
-		OutHeight: int(outH),
+		Depth:        int(depth),
+		InputWidth:   int(inW),
+		InputHeight:  int(inH),
+		OutputWidth:  int(outW),
+		OutputHeight: int(outH),
 	}, nil
 }
 
@@ -49,11 +49,11 @@ func (r *Resize) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 	if batchSize == 0 {
 		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
 	}
-	if r.InWidth == 0 || r.InHeight == 0 || r.OutWidth == 0 ||
-		r.OutHeight == 0 || r.Depth == 0 {
+	if r.InputWidth == 0 || r.InputHeight == 0 || r.OutputWidth == 0 ||
+		r.OutputHeight == 0 || r.Depth == 0 {
 		panic("tensor dimension cannot be 0")
 	}
-	if r.InWidth*r.InHeight*r.Depth*batchSize != in.Output().Len() {
+	if r.InputWidth*r.InputHeight*r.Depth*batchSize != in.Output().Len() {
 		panic("incorrect input size")
 	}
 
@@ -83,21 +83,21 @@ func (r *Resize) SerializerType() string {
 func (r *Resize) Serialize() ([]byte, error) {
 	return serializer.SerializeAny(
 		serializer.Int(r.Depth),
-		serializer.Int(r.InWidth),
-		serializer.Int(r.InHeight),
-		serializer.Int(r.OutWidth),
-		serializer.Int(r.OutHeight),
+		serializer.Int(r.InputWidth),
+		serializer.Int(r.InputHeight),
+		serializer.Int(r.OutputWidth),
+		serializer.Int(r.OutputHeight),
 	)
 }
 
 func (r *Resize) initializeMapping(c anyvec.Creator) {
 	var sources []int
 	var amounts []float64
-	xScale := float64(r.InWidth-1) / float64(r.OutWidth-1)
-	yScale := float64(r.InHeight-1) / float64(r.OutHeight-1)
-	for y := 0; y < r.OutHeight; y++ {
+	xScale := float64(r.InputWidth-1) / float64(r.OutputWidth-1)
+	yScale := float64(r.InputHeight-1) / float64(r.OutputHeight-1)
+	for y := 0; y < r.OutputHeight; y++ {
 		sourceY := yScale * float64(y)
-		for x := 0; x < r.OutWidth; x++ {
+		for x := 0; x < r.OutputWidth; x++ {
 			sourceX := xScale * float64(x)
 			neighbors, a := r.neighbors(sourceX, sourceY)
 			for z := 0; z < r.Depth; z++ {
@@ -108,16 +108,16 @@ func (r *Resize) initializeMapping(c anyvec.Creator) {
 			}
 		}
 	}
-	r.neighborMap = c.MakeMapper(r.InWidth*r.InHeight*r.Depth, sources)
+	r.neighborMap = c.MakeMapper(r.InputWidth*r.InputHeight*r.Depth, sources)
 	r.neighborWeights = c.MakeVectorData(c.MakeNumericList(amounts))
 }
 
 func (r *Resize) neighbors(sx, sy float64) ([4]int, [4]float64) {
-	if sx > float64(r.InWidth-1) {
-		sx = float64(r.InWidth - 1)
+	if sx > float64(r.InputWidth-1) {
+		sx = float64(r.InputWidth - 1)
 	}
-	if sy > float64(r.InHeight-1) {
-		sy = float64(r.InHeight - 1)
+	if sy > float64(r.InputHeight-1) {
+		sy = float64(r.InputHeight - 1)
 	}
 	x1, x2 := int(sx), int(sx+1)
 	y1, y2 := int(sy), int(sy+1)
@@ -125,9 +125,9 @@ func (r *Resize) neighbors(sx, sy float64) ([4]int, [4]float64) {
 		x1 = 0
 		y1 = 0
 	}
-	if x2 >= r.InWidth || y2 >= r.InHeight {
-		x2 = r.InWidth - 1
-		y2 = r.InHeight - 1
+	if x2 >= r.InputWidth || y2 >= r.InputHeight {
+		x2 = r.InputWidth - 1
+		y2 = r.InputHeight - 1
 	}
 
 	x1A := 1 - (sx - float64(x1))
@@ -147,7 +147,7 @@ func (r *Resize) neighbors(sx, sy float64) ([4]int, [4]float64) {
 }
 
 func (r *Resize) sourceIndex(x, y int) int {
-	return r.Depth * (x + r.InWidth*y)
+	return r.Depth * (x + r.InputWidth*y)
 }
 
 type resizeRes struct {
