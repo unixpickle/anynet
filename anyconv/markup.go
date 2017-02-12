@@ -77,6 +77,14 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 			PaddingBottom: b.Bottom,
 			PaddingLeft:   b.Left,
 		}, nil
+	case *convmarkup.Resize:
+		return &Resize{
+			InputWidth:   inDims.Width,
+			InputHeight:  inDims.Height,
+			Depth:        inDims.Depth,
+			OutputWidth:  b.Out.Width,
+			OutputHeight: b.Out.Depth,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unexpected markup block: %s", b.Type())
 	}
