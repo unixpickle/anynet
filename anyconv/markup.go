@@ -83,7 +83,7 @@ func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
 			InputHeight:  inDims.Height,
 			Depth:        inDims.Depth,
 			OutputWidth:  b.Out.Width,
-			OutputHeight: b.Out.Depth,
+			OutputHeight: b.Out.Height,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unexpected markup block: %s", b.Type())
