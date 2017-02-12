@@ -76,7 +76,7 @@ func (m *MaxPool) OutputDepth() int {
 	return m.InputDepth
 }
 
-// Apply applies the layer an input tensor.
+// Apply applies the layer to an input tensor.
 //
 // This is not thread-safe.
 func (m *MaxPool) Apply(in anydiff.Res, batchSize int) anydiff.Res {
