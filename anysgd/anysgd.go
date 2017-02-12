@@ -28,14 +28,14 @@ type SGD struct {
 	// Rater determines the learning rate for each step.
 	Rater Rater
 
-	// StatusFunc, if non-nil, is called before every
-	// iteration with the next mini-batch.
-	StatusFunc func(batch Batch)
-
 	// BatchSize is the mini-batch size.
 	// If it is 0, then the entire sample list is used at
 	// every iteration.
 	BatchSize int
+
+	// StatusFunc, if non-nil, is called before every
+	// iteration with the next mini-batch.
+	StatusFunc func(batch Batch)
 
 	// NumProcessed keeps track of the number of samples that
 	// have been passed to Gradienter so far.
