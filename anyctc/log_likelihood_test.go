@@ -8,7 +8,7 @@ import (
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anydifftest"
 	"github.com/unixpickle/anyvec"
-	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/anyvec/anyvec64"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 )
 
 func TestLogLikelihoodOutputs(t *testing.T) {
-	c := anyvec32.CurrentCreator()
+	c := anyvec64.CurrentCreator()
 	for i := 0; i < 11; i++ {
 		labelLen := 5 + rand.Intn(5)
 		if i == 10 {
@@ -30,7 +30,8 @@ func TestLogLikelihoodOutputs(t *testing.T) {
 		}
 		seq, res := createTestSequence(c, seqLen, testSymbolCount)
 		expected := exactLikelihood(seq, label, -1)
-		actual := math.Exp(vectorFloats(logLikelihood(c, res, label).Output())[0])
+		outSlice := logLikelihood(c, res, label).Output().Data().([]float64)
+		actual := math.Exp(outSlice[0])
 		if math.Abs(actual-expected)/math.Abs(expected) > testPrecision {
 			t.Errorf("LogLikelihood gave log(%e) but expected log(%e)",
 				actual, expected)
@@ -39,7 +40,7 @@ func TestLogLikelihoodOutputs(t *testing.T) {
 }
 
 func TestLogLikelihoodGrad(t *testing.T) {
-	c := anyvec32.CurrentCreator()
+	c := anyvec64.CurrentCreator()
 	label := make([]int, 5)
 	for i := range label {
 		label[i] = rand.Intn(testSymbolCount)

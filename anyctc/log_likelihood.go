@@ -1,7 +1,6 @@
 package anyctc
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/unixpickle/anydiff"
@@ -11,6 +10,9 @@ import (
 // logLikelihood computes the log likelihood of the label.
 // The last entry of each input vector is the log of
 // the probability of the blank symbol.
+//
+// This only works for creators that use []float64 numeric
+// list types.
 func logLikelihood(c anyvec.Creator, seq []anydiff.Res, label []int) anydiff.Res {
 	if len(seq) == 0 {
 		var constVal float64
@@ -60,8 +62,8 @@ type logLikelihoodStep struct {
 }
 
 func newLogLikelihoodStep(inputRes, positionProbs anydiff.Res, label []int) *logLikelihoodStep {
-	input := vectorFloats(inputRes.Output())
-	last := vectorFloats(positionProbs.Output())
+	input := inputRes.Output().Data().([]float64)
+	last := positionProbs.Output().Data().([]float64)
 	newProbs := make([]float64, len(last))
 	newProbs[0] = last[0] + input[len(input)-1]
 	for i := 2; i < len(label)*2+1; i += 2 {
@@ -94,9 +96,9 @@ func (l *logLikelihoodStep) Vars() anydiff.VarSet {
 }
 
 func (l *logLikelihoodStep) Propagate(u anyvec.Vector, g anydiff.Grad) {
-	upstream := vectorFloats(u)
-	last := vectorFloats(l.LastProbs.Output())
-	input := vectorFloats(l.SeqIn.Output())
+	upstream := u.Data().([]float64)
+	last := l.LastProbs.Output().Data().([]float64)
+	input := l.SeqIn.Output().Data().([]float64)
 	lastGrad := make([]float64, len(last))
 	inputGrad := make([]float64, len(input))
 
@@ -129,25 +131,10 @@ func (l *logLikelihoodStep) Propagate(u anyvec.Vector, g anydiff.Grad) {
 
 	c := l.LastProbs.Output().Creator()
 	if g.Intersects(l.LastProbs.Vars()) {
-		l.LastProbs.Propagate(c.MakeVectorData(c.MakeNumericList(lastGrad)), g)
+		l.LastProbs.Propagate(c.MakeVectorData(lastGrad), g)
 	}
 	if g.Intersects(l.SeqIn.Vars()) {
-		l.SeqIn.Propagate(c.MakeVectorData(c.MakeNumericList(inputGrad)), g)
-	}
-}
-
-func vectorFloats(v anyvec.Vector) []float64 {
-	switch data := v.Data().(type) {
-	case []float64:
-		return data
-	case []float32:
-		res := make([]float64, len(data))
-		for i, x := range data {
-			res[i] = float64(x)
-		}
-		return res
-	default:
-		panic(fmt.Sprintf("unsupported numeric list type: %T", data))
+		l.SeqIn.Propagate(c.MakeVectorData(inputGrad), g)
 	}
 }
 
@@ -184,7 +171,7 @@ type addLastTwoLogsRes struct {
 }
 
 func addLastTwoLogs(res anydiff.Res) anydiff.Res {
-	v := vectorFloats(res.Output())
+	v := res.Output().Data().([]float64)
 	sum := res.Output().Creator().MakeNumericList([]float64{
 		addLogs(v[len(v)-1], v[len(v)-2]),
 	})
@@ -203,10 +190,10 @@ func (a *addLastTwoLogsRes) Vars() anydiff.VarSet {
 }
 
 func (a *addLastTwoLogsRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
-	v := vectorFloats(a.In.Output())
-	da, db := addLogsDeriv(v[len(v)-1], v[len(v)-2], vectorFloats(u)[0])
+	v := a.In.Output().Data().([]float64)
+	da, db := addLogsDeriv(v[len(v)-1], v[len(v)-2], u.Data().([]float64)[0])
 	downstream := make([]float64, len(v))
 	downstream[len(v)-1] = da
 	downstream[len(v)-2] = db
-	a.In.Propagate(u.Creator().MakeVectorData(u.Creator().MakeNumericList(downstream)), g)
+	a.In.Propagate(u.Creator().MakeVectorData(downstream), g)
 }

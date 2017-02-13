@@ -21,10 +21,10 @@ import (
 // input sequences are fairly short.
 func BestLabels(seqs anyseq.Seq, blankThresh float64) [][]int {
 	var res [][]int
-	for _, seq := range anyseq.SeparateSeqs(seqs.Output()) {
+	for _, seq := range anyseq.SeparateSeqs(batchesTo64(seqs.Output())) {
 		floatSeq := make([][]float64, len(seq))
 		for i, x := range seq {
-			floatSeq[i] = vectorFloats(x)
+			floatSeq[i] = x.Data().([]float64)
 		}
 		res = append(res, prefixSearch(floatSeq, blankThresh))
 	}

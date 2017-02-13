@@ -21,9 +21,9 @@ func TestCostOutputs(t *testing.T) {
 	expectedProbs := []float64{1, 0.3 * 0.5, 0}
 	inSeqs := logProbSeqs(anyvec32.CurrentCreator(), probSeqs)
 	negOut := anydiff.Scale(Cost(inSeqs, labels), float32(-1))
-	actualProbs := vectorFloats(anydiff.Exp(negOut).Output())
+	actualProbs := anydiff.Exp(negOut).Output().Data().([]float32)
 	for i, x := range expectedProbs {
-		a := actualProbs[i]
+		a := float64(actualProbs[i])
 		if math.Abs(x-a)/x > testPrecision {
 			t.Errorf("output %d: expected %f but got %f", i, x, a)
 		}
