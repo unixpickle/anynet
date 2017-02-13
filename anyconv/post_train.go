@@ -13,6 +13,8 @@ import (
 
 // A PostTrainer uses a list of samples to replace
 // BatchNorm layers with hard-wired affine transforms.
+// It automatically looks for BatchNorm layers inside
+// Residual blocks.
 type PostTrainer struct {
 	Samples anysgd.SampleList
 
@@ -32,27 +34,21 @@ type PostTrainer struct {
 // However, even in the event of an error, some layers may
 // already be replaced with affine transforms.
 func (p *PostTrainer) Run() error {
-	for i, x := range p.Net {
-		bn, ok := x.(*BatchNorm)
-		if !ok {
-			continue
-		}
-		preNet := p.Net[:i]
-		mean, stddev, err := momentsFromOutputs(bn, p.evaluateBatch(preNet))
+	return affinizeNet(p.Net, func(bn *BatchNorm, subNet anynet.Net) (*anynet.Affine, error) {
+		mean, stddev, err := momentsFromOutputs(bn, p.evaluateBatch(subNet))
 		if err != nil {
-			return essentials.AddCtx("post train", err)
+			return nil, essentials.AddCtx("post train", err)
 		}
 		scaler := bn.Scalers.Vector.Copy()
 		scaler.Div(stddev)
 		bias := bn.Biases.Vector.Copy()
 		mean.Mul(scaler)
 		bias.Sub(mean)
-		p.Net[i] = &anynet.Affine{
+		return &anynet.Affine{
 			Scalers: anydiff.NewVar(scaler),
 			Biases:  anydiff.NewVar(bias),
-		}
-	}
-	return nil
+		}, nil
+	})
 }
 
 func (p *PostTrainer) evaluateBatch(subNet anynet.Net) <-chan *postTrainerOutput {
@@ -77,6 +73,47 @@ func (p *PostTrainer) evaluateBatch(subNet anynet.Net) <-chan *postTrainerOutput
 		}
 	}()
 	return resChan
+}
+
+func affinizeNet(n anynet.Net, f func(*BatchNorm, anynet.Net) (*anynet.Affine, error)) error {
+	for i, layer := range n {
+		if bn, ok := layer.(*BatchNorm); ok {
+			if a, err := f(bn, n[:i]); err != nil {
+				return err
+			} else {
+				n[i] = a
+			}
+			continue
+		}
+
+		r, ok := layer.(*Residual)
+		if !ok {
+			continue
+		}
+
+		for _, part := range []*anynet.Layer{&r.Layer, &r.Projection} {
+			if *part == nil {
+				continue
+			}
+			switch layer := (*part).(type) {
+			case anynet.Net:
+				subF := func(bn *BatchNorm, subNet anynet.Net) (*anynet.Affine, error) {
+					return f(bn, append(append(anynet.Net{}, n[:i]...), subNet...))
+				}
+				err := affinizeNet(layer, subF)
+				if err != nil {
+					return err
+				}
+			case *BatchNorm:
+				if a, err := f(layer, n[:i]); err != nil {
+					return err
+				} else {
+					*part = a
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type postTrainerOutput struct {
