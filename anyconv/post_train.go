@@ -26,6 +26,10 @@ type PostTrainer struct {
 	BatchSize int
 
 	Net anynet.Net
+
+	// StatusFunc, if non-nil, is called for every BatchNorm
+	// layer right before the layer is replaced.
+	StatusFunc func(bn *BatchNorm)
 }
 
 // Run performs layer replacement.
@@ -44,6 +48,9 @@ func (p *PostTrainer) Run() error {
 		bias := bn.Biases.Vector.Copy()
 		mean.Mul(scaler)
 		bias.Sub(mean)
+		if p.StatusFunc != nil {
+			p.StatusFunc(bn)
+		}
 		return &anynet.Affine{
 			Scalers: anydiff.NewVar(scaler),
 			Biases:  anydiff.NewVar(bias),
