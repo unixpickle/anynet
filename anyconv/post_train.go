@@ -60,23 +60,38 @@ func (p *PostTrainer) Run() error {
 
 func (p *PostTrainer) evaluateBatch(subNet anynet.Net) <-chan *postTrainerOutput {
 	resChan := make(chan *postTrainerOutput, 1)
+	batchChan := make(chan anysgd.Batch, 1)
+	batchSizesChan := make(chan int, 1)
+	batchErrChan := make(chan error, 1)
 	go func() {
-		defer close(resChan)
+		defer close(batchChan)
+		defer close(batchSizesChan)
+		defer close(batchErrChan)
 		for i := 0; i < p.Samples.Len(); i += p.BatchSize {
 			bs := p.Samples.Len() - i
 			if bs > p.BatchSize {
 				bs = p.BatchSize
 			}
-			batch, err := p.Fetcher.Fetch(p.Samples.Slice(i, i+bs))
-			if err != nil {
-				resChan <- &postTrainerOutput{Err: err}
+			slice := p.Samples.Slice(i, i+bs)
+			if batch, err := p.Fetcher.Fetch(slice); err == nil {
+				batchChan <- batch
+				batchSizesChan <- bs
+			} else {
+				batchErrChan <- err
 				return
 			}
+		}
+	}()
+	go func() {
+		defer close(resChan)
+		for batch := range batchChan {
+			bs := <-batchSizesChan
 			inVec := batch.(*anyff.Batch).Inputs
 			outVec := subNet.Apply(inVec, bs).Output().Copy()
-			resChan <- &postTrainerOutput{
-				Vec: outVec,
-			}
+			resChan <- &postTrainerOutput{Vec: outVec}
+		}
+		if err := <-batchErrChan; err != nil {
+			resChan <- &postTrainerOutput{Err: err}
 		}
 	}()
 	return resChan
