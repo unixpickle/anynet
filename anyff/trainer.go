@@ -2,6 +2,8 @@ package anyff
 
 import (
 	"errors"
+	"runtime"
+	"sync"
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
@@ -34,6 +36,11 @@ type Trainer struct {
 	// After every gradient computation, LastCost is set to
 	// the cost from the batch.
 	LastCost anyvec.Numeric
+
+	// MaxGos specifies the maximum goroutines to use
+	// simultaneously for fetching samples.
+	// If it is 0, GOMAXPROCS is used.
+	MaxGos int
 }
 
 // Fetch produces a *Batch for the subset of samples.
@@ -45,14 +52,43 @@ func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	}
 
 	l := s.(SampleList)
-	var ins, outs []anyvec.Vector
+	ins := make([]anyvec.Vector, l.Len())
+	outs := make([]anyvec.Vector, l.Len())
+
+	idxChan := make(chan int, l.Len())
 	for i := 0; i < l.Len(); i++ {
-		sample, err := l.GetSample(i)
-		if err != nil {
-			return nil, essentials.AddCtx("fetch batch", err)
-		}
-		ins = append(ins, sample.Input)
-		outs = append(outs, sample.Output)
+		idxChan <- i
+	}
+	close(idxChan)
+
+	maxGos := t.MaxGos
+	if maxGos == 0 {
+		maxGos = runtime.GOMAXPROCS(0)
+	}
+
+	wg := sync.WaitGroup{}
+	errChan := make(chan error, maxGos)
+	for i := 0; i < maxGos; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range idxChan {
+				sample, err := l.GetSample(i)
+				if err != nil {
+					errChan <- essentials.AddCtx("fetch batch", err)
+					return
+				}
+				ins[i] = sample.Input
+				outs[i] = sample.Output
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	if err := <-errChan; err != nil {
+		return nil, err
 	}
 
 	joinedIns := ins[0].Creator().Concat(ins...)
