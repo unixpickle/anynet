@@ -88,3 +88,26 @@ func (s SigmoidCE) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	}
 	return anydiff.Scale(res, res.Output().Creator().MakeNumeric(d))
 }
+
+// L2Reg wraps a Cost and adds an L2 penalty.
+//
+// The L2 penalty is computed by squaring the parameters,
+// summing the squares, then multiplying the sum by
+// Penalty / 2.
+type L2Reg struct {
+	Penalty float64
+	Params  []*anydiff.Var
+	Wrapped Cost
+}
+
+// Cost computes the cost from l.Wrapped and adds the L2
+// penalty to each component.
+func (l *L2Reg) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
+	var sum anydiff.Res
+	sum = anydiff.NewConst(actual.Output().Creator().MakeVector(1))
+	for _, p := range l.Params {
+		sum = anydiff.Add(sum, anydiff.Sum(anydiff.Square(p)))
+	}
+	sum = anydiff.Scale(sum, sum.Output().Creator().MakeNumeric(l.Penalty/2))
+	return anydiff.AddRepeated(l.Wrapped.Cost(desired, actual, n), sum)
+}
