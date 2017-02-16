@@ -1,6 +1,7 @@
 package anysgd
 
 import (
+	"math"
 	"math/rand"
 
 	"github.com/unixpickle/anydiff"
@@ -26,6 +27,23 @@ type ConstRater float64
 // Rate returns float64(c).
 func (c ConstRater) Rate(epoch float64) float64 {
 	return float64(c)
+}
+
+// An ExpRater is a Rater which returns
+//
+//     Bias + Coeff*Decay^t
+//
+// This is a standard kind of exponential decay schedule
+// used for SGD.
+type ExpRater struct {
+	Bias  float64
+	Coeff float64
+	Decay float64
+}
+
+// Rate computes the rate for time t.
+func (e *ExpRater) Rate(t float64) float64 {
+	return e.Bias + e.Coeff*math.Pow(e.Decay, t)
 }
 
 func copyGrad(g anydiff.Grad) anydiff.Grad {
