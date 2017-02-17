@@ -36,7 +36,7 @@ type Conv struct {
 	Filters *anydiff.Var
 	Biases  *anydiff.Var
 
-	im2col anyvec.Mapper
+	im2row *Im2Row
 }
 
 // DeserializeConv deserialize a Conv.
@@ -110,29 +110,28 @@ func (c *Conv) OutputDepth() int {
 // The layer must have been initialized.
 //
 // This is not thread-safe.
+//
+// After you apply a Conv, you should not modify
+// its fields again.
 func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 	if c.Filters == nil || c.Biases == nil {
 		panic("cannot apply uninitialized Conv")
-	}
-	if c.im2col == nil {
-		c.initIm2Col(c.Filters.Vector.Creator())
-	}
-	if c.OutputWidth() == 0 || c.OutputHeight() == 0 {
+	} else if c.OutputWidth() == 0 || c.OutputHeight() == 0 {
 		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
+	}
+	if c.im2row == nil {
+		c.initIm2Row()
 	}
 	imgSize := c.InputWidth * c.InputHeight * c.InputDepth
 	if in.Output().Len() != batchSize*imgSize {
 		panic("incorrect input size")
 	}
 
-	imgMatrix := c.im2ColMat()
 	filterMatrix := c.filterMatrix()
 	outImgSize := c.OutputWidth() * c.OutputHeight() * c.OutputDepth()
 
 	var productResults []anyvec.Vector
-	for i := 0; i < batchSize; i++ {
-		subIn := in.Output().Slice(imgSize*i, imgSize*(i+1))
-		c.im2col.Map(subIn, imgMatrix.Data)
+	c.im2row.MapAll(in.Output(), func(_ int, imgMatrix *anyvec.Matrix) {
 		prodMat := &anyvec.Matrix{
 			Data: in.Output().Creator().MakeVector(outImgSize),
 			Rows: c.OutputWidth() * c.OutputHeight(),
@@ -141,7 +140,7 @@ func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 		prodMat.Product(false, true, in.Output().Creator().MakeNumeric(1),
 			imgMatrix, filterMatrix, in.Output().Creator().MakeNumeric(0))
 		productResults = append(productResults, prodMat.Data)
-	}
+	})
 
 	outData := in.Output().Creator().Concat(productResults...)
 	anyvec.AddRepeated(outData, c.Biases.Vector)
@@ -198,39 +197,24 @@ func (c *Conv) Serialize() ([]byte, error) {
 	)
 }
 
-func (c *Conv) initIm2Col(cr anyvec.Creator) {
-	var mapping []int
+func (c *Conv) initIm2Row() {
+	c.im2row = &Im2Row{
+		WindowWidth:  c.FilterWidth,
+		WindowHeight: c.FilterHeight,
 
-	for y := 0; y+c.FilterHeight <= c.InputHeight; y += c.StrideY {
-		for x := 0; x+c.FilterWidth <= c.InputWidth; x += c.StrideX {
-			for subY := 0; subY < c.FilterHeight; subY++ {
-				subYIdx := (y + subY) * c.InputWidth * c.InputDepth
-				for subX := 0; subX < c.FilterWidth; subX++ {
-					subXIdx := subYIdx + (subX+x)*c.InputDepth
-					for subZ := 0; subZ < c.InputDepth; subZ++ {
-						mapping = append(mapping, subXIdx+subZ)
-					}
-				}
-			}
-		}
+		StrideX: c.StrideX,
+		StrideY: c.StrideY,
+
+		InputWidth:  c.InputWidth,
+		InputHeight: c.InputHeight,
+		InputDepth:  c.InputDepth,
 	}
-
-	inSize := c.InputWidth * c.InputHeight * c.InputDepth
-	c.im2col = cr.MakeMapper(inSize, mapping)
 }
 
 func (c *Conv) filterMatrix() *anyvec.Matrix {
 	return &anyvec.Matrix{
 		Data: c.Filters.Vector,
 		Rows: c.FilterCount,
-		Cols: c.FilterWidth * c.FilterHeight * c.InputDepth,
-	}
-}
-
-func (c *Conv) im2ColMat() *anyvec.Matrix {
-	return &anyvec.Matrix{
-		Data: c.Filters.Vector.Creator().MakeVector(c.im2col.OutSize()),
-		Rows: c.im2col.OutSize() / (c.FilterWidth * c.FilterHeight * c.InputDepth),
 		Cols: c.FilterWidth * c.FilterHeight * c.InputDepth,
 	}
 }
@@ -257,7 +241,6 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 	outSize := u.Len() / c.N
 	inSize := c.In.Output().Len() / c.N
 
-	imgMat := c.Layer.im2ColMat()
 	filterMat := c.Layer.filterMatrix()
 
 	one := u.Creator().MakeNumeric(1)
@@ -268,15 +251,13 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 	}
 
 	var inputUpstreams []anyvec.Vector
-	for i := 0; i < c.N; i++ {
+	c.loopImageMatrix(g, func(i int, imgMat *anyvec.Matrix) {
 		uMat := &anyvec.Matrix{
 			Data: u.Slice(outSize*i, outSize*(i+1)),
 			Rows: c.Layer.OutputWidth() * c.Layer.OutputHeight(),
 			Cols: c.Layer.OutputDepth(),
 		}
 		if filterGrad, ok := g[c.Layer.Filters]; ok {
-			subIn := c.In.Output().Slice(inSize*i, inSize*(i+1))
-			c.Layer.im2col.Map(subIn, imgMat.Data)
 			fgMat := *filterMat
 			fgMat.Data = filterGrad
 			fgMat.Product(true, false, one, uMat, imgMat, one)
@@ -284,14 +265,25 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 		if doIn {
 			imgMat.Product(false, false, one, uMat, filterMat, zero)
 			inUp := u.Creator().MakeVector(inSize)
-			c.Layer.im2col.MapTranspose(imgMat.Data, inUp)
+			c.Layer.im2row.Mapper(u.Creator()).MapTranspose(imgMat.Data, inUp)
 			inputUpstreams = append(inputUpstreams, inUp)
 		}
-	}
+	})
 
 	if doIn {
 		totalUp := u.Creator().Concat(inputUpstreams...)
 		c.In.Propagate(totalUp, g)
+	}
+}
+
+func (c *convRes) loopImageMatrix(g anydiff.Grad, f func(i int, m *anyvec.Matrix)) {
+	if _, ok := g[c.Layer.Filters]; ok {
+		c.Layer.im2row.MapAll(c.In.Output(), f)
+	} else {
+		imgMat := c.Layer.im2row.MakeOut(c.In.Output().Creator())
+		for i := 0; i < c.N; i++ {
+			f(i, imgMat)
+		}
 	}
 }
 
