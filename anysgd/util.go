@@ -20,6 +20,27 @@ func Shuffle(s SampleList) {
 	}
 }
 
+// LengthSampleList is a SampleList that carries no
+// information other than its length.
+//
+// This may be used in conjunction with a Fetcher that
+// generates data dynamically.
+type LengthSampleList int
+
+// Len returns int(l).
+func (l LengthSampleList) Len() int {
+	return int(l)
+}
+
+// Swap does nothing.
+func (l LengthSampleList) Swap(i, j int) {
+}
+
+// Slice creates a LengthSampleList with the new size.
+func (l LengthSampleList) Slice(i, j int) SampleList {
+	return LengthSampleList(j - i)
+}
+
 // A ConstRater is a Rater which always returns the same
 // constant learning rate.
 type ConstRater float64
