@@ -22,6 +22,7 @@ const (
 	Sigmoid
 	ReLU
 	Sin
+	Exp
 )
 
 // DeserializeActivation deserializes an Activation.
@@ -30,7 +31,7 @@ func DeserializeActivation(d []byte) (Activation, error) {
 		return 0, fmt.Errorf("deserialize Activation: data length (%d) should be 1", len(d))
 	}
 	a := Activation(d[0])
-	if a > Sin {
+	if a > Exp {
 		return 0, fmt.Errorf("deserialize Activation: unknown activation ID: %d", a)
 	}
 	return a, nil
@@ -53,6 +54,8 @@ func (a Activation) Apply(in anydiff.Res, n int) anydiff.Res {
 		return anydiff.ClipPos(in)
 	case Sin:
 		return anydiff.Sin(in)
+	case Exp:
+		return anydiff.Exp(in)
 	default:
 		panic(fmt.Sprintf("unknown activation: %d", a))
 	}

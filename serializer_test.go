@@ -15,12 +15,13 @@ func TestActivationSerialize(t *testing.T) {
 	a3 := Sigmoid
 	a4 := ReLU
 	a5 := Sin
-	data, err := serializer.SerializeAny(a1, a2, a3, a4, a5)
+	a6 := Exp
+	data, err := serializer.SerializeAny(a1, a2, a3, a4, a5, a6)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var newA1, newA2, newA3, newA4, newA5 Activation
-	err = serializer.DeserializeAny(data, &newA1, &newA2, &newA3, &newA4, &newA5)
+	var newA1, newA2, newA3, newA4, newA5, newA6 Activation
+	err = serializer.DeserializeAny(data, &newA1, &newA2, &newA3, &newA4, &newA5, &newA6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,6 +39,9 @@ func TestActivationSerialize(t *testing.T) {
 	}
 	if newA5 != a5 {
 		t.Error("Sin failed")
+	}
+	if newA6 != a6 {
+		t.Error("Exp failed")
 	}
 }
 
