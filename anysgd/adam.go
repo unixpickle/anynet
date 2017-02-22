@@ -35,6 +35,9 @@ type Adam struct {
 	iteration    float64
 }
 
+// Transform transforms the gradient using Adam.
+//
+// This is not thread-safe.
 func (a *Adam) Transform(realGrad anydiff.Grad) anydiff.Grad {
 	a.updateMoments(realGrad)
 

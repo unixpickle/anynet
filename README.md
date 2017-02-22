@@ -9,4 +9,3 @@
    * GRU
  * anysgd
    * RMSProp
-   * Momentum
