@@ -2,8 +2,32 @@ package anyconv
 
 import (
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 )
+
+// Weights returns all of the filters and weight matrices
+// in the layer without returning biases, scalers, etc.
+// It can extract anynet.Net and Residual layers.
+func Weights(l anynet.Layer) []*anydiff.Var {
+	var res []*anydiff.Var
+	switch l := l.(type) {
+	case anynet.Net:
+		for _, sub := range l {
+			res = append(res, Weights(sub)...)
+		}
+	case *anynet.FC:
+		res = append(res, l.Weights)
+	case *Conv:
+		res = append(res, l.Filters)
+	case *Residual:
+		res = append(res, Weights(l.Layer)...)
+		if l.Projection != nil {
+			res = append(res, Weights(l.Projection)...)
+		}
+	}
+	return res
+}
 
 type meanRowsRes struct {
 	In     anydiff.Res
