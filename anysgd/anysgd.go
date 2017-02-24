@@ -4,6 +4,8 @@
 // can be applied to other areas as well.
 package anysgd
 
+import "github.com/unixpickle/anydiff"
+
 // SGD performs stochastic gradient descent.
 type SGD struct {
 	// Fetcher is used to obtain Batches for mini-batch
@@ -52,6 +54,66 @@ type SGD struct {
 // However, you may safely read from s.NumProcessed during
 // calls to s.StatusFunc.
 func (s *SGD) Run(doneChan <-chan struct{}) error {
+	return s.streamGradients(doneChan, func(g anydiff.Grad) {
+		if s.Transformer != nil {
+			g = s.Transformer.Transform(g)
+		}
+		scaleGrad(g, -s.Rater.Rate(s.epoch()))
+		g.AddToVars()
+	})
+}
+
+// RunAvg is like Run, but n mini-batch gradients are
+// averaged together before a step is taken.
+//
+// The StatusFunc is called for every mini-batch gradient,
+// not just for each gradient step.
+func (s *SGD) RunAvg(n int, doneChan <-chan struct{}) error {
+	if n < 1 {
+		panic("n out of bounds")
+	}
+
+	var sum anydiff.Grad
+	var count int
+	return s.streamGradients(doneChan, func(g anydiff.Grad) {
+		if sum == nil {
+			var vars []*anydiff.Var
+			for v := range g {
+				vars = append(vars, v)
+			}
+			sum = anydiff.NewGrad(vars...)
+		}
+
+		for v, x := range sum {
+			x.Add(g[v])
+		}
+
+		count++
+		if count == n {
+			scaleGrad(sum, 1/float64(n))
+
+			addMe := sum
+			if s.Transformer != nil {
+				addMe = s.Transformer.Transform(addMe)
+			}
+			scaleGrad(addMe, -s.Rater.Rate(s.epoch()))
+			addMe.AddToVars()
+
+			sum.Clear()
+			count = 0
+		}
+	})
+}
+
+func (s *SGD) batchSize(remaining int) int {
+	if s.BatchSize == 0 || s.BatchSize > remaining {
+		return remaining
+	} else {
+		return s.BatchSize
+	}
+}
+
+func (s *SGD) streamGradients(doneChan <-chan struct{}, f func(anydiff.Grad)) error {
 	if s.Samples.Len() == 0 {
 		panic("cannot run SGD with empty sample list")
 	}
@@ -114,25 +176,15 @@ func (s *SGD) Run(doneChan <-chan struct{}) error {
 			}
 		}
 
-		grad := s.Gradienter.Gradient(info.Batch)
-		if s.Transformer != nil {
-			grad = s.Transformer.Transform(grad)
-		}
-
-		epoch := float64(s.NumProcessed) / float64(s.Samples.Len())
-		scaleGrad(grad, -s.Rater.Rate(epoch))
-		grad.AddToVars()
-
 		s.NumProcessed += info.Size
+
+		grad := s.Gradienter.Gradient(info.Batch)
+		f(grad)
 	}
 }
 
-func (s *SGD) batchSize(remaining int) int {
-	if s.BatchSize == 0 || s.BatchSize > remaining {
-		return remaining
-	} else {
-		return s.BatchSize
-	}
+func (s *SGD) epoch() float64 {
+	return float64(s.NumProcessed) / float64(s.Samples.Len())
 }
 
 type batchInfo struct {
