@@ -71,6 +71,8 @@ func (s *SGD) Run(doneChan <-chan struct{}) error {
 func (s *SGD) RunAvg(n int, doneChan <-chan struct{}) error {
 	if n < 1 {
 		panic("n out of bounds")
+	} else if n == 1 {
+		return s.Run(doneChan)
 	}
 
 	var sum anydiff.Grad
