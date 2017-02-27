@@ -14,6 +14,8 @@ func init() {
 
 // A Resize layer resizes tensors using bilinear
 // interpolation.
+//
+// The output dimensions must be greater than 1.
 type Resize struct {
 	Depth int
 
@@ -49,9 +51,9 @@ func (r *Resize) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 	if batchSize == 0 {
 		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
 	}
-	if r.InputWidth == 0 || r.InputHeight == 0 || r.OutputWidth == 0 ||
-		r.OutputHeight == 0 || r.Depth == 0 {
-		panic("tensor dimension cannot be 0")
+	if r.InputWidth == 0 || r.InputHeight == 0 || r.OutputWidth <= 1 ||
+		r.OutputHeight <= 1 || r.Depth == 0 {
+		panic("tensor dimension out of range")
 	}
 	if r.InputWidth*r.InputHeight*r.Depth*batchSize != in.Output().Len() {
 		panic("incorrect input size")
