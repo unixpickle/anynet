@@ -1,6 +1,9 @@
 package anynet
 
-import "github.com/unixpickle/anydiff"
+import (
+	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anyvec"
+)
 
 // A Cost provides a way to measure the amount of error
 // from the output of a neural network.
@@ -110,4 +113,68 @@ func (l *L2Reg) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	}
 	sum = anydiff.Scale(sum, sum.Output().Creator().MakeNumeric(l.Penalty/2))
 	return anydiff.AddRepeated(l.Wrapped.Cost(desired, actual, n), sum)
+}
+
+// Hinge implements binary hinge-loss.
+//
+// Let d be the desired classification (1 or -1) and let a
+// be the actual network output.
+// The hinge loss is defined as:
+//
+//     max(0, 1-a*d)
+//
+// The loss for each batch is the sum of the hinge loss
+// for each component.
+type Hinge struct{}
+
+// Cost computes the total hinge loss for each batch.
+func (h Hinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
+	m := &anydiff.Matrix{
+		Data: anydiff.ClipPos(anydiff.Complement(anydiff.Mul(desired, actual))),
+		Rows: n,
+		Cols: desired.Output().Len() / n,
+	}
+	return anydiff.SumCols(m)
+}
+
+// MultiHinge implements multi-class hinge-loss.
+//
+// The hinge loss is defined as in Moore and DeNero, 2011.
+// See http://www.ttic.edu/sigml/symposium2011/papers/Moore+DeNero_Regularization.pdf.
+type MultiHinge struct{}
+
+// Cost computes the hinge loss for each batch.
+//
+// The desired vector for each batch should have all zero
+// elements except for a single 1.
+// The 1 is taken to mark the spot of the correct class.
+func (m MultiHinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
+	// We ignore the desired output via scaling by 0.
+	// In order for that to work, every vector component
+	// must be non-negative.
+	offset := anyvec.AbsMax(actual.Output())
+	actual = anydiff.AddScaler(actual, offset)
+
+	return anydiff.Pool(desired, func(desired anydiff.Res) anydiff.Res {
+		return anydiff.Pool(actual, func(actual anydiff.Res) anydiff.Res {
+			cols := desired.Output().Len() / n
+			rights := anydiff.SumCols(
+				&anydiff.Matrix{
+					Data: anydiff.Mul(desired, actual),
+					Rows: n,
+					Cols: cols,
+				},
+			)
+
+			maskedOut := desired.Output().Copy()
+			anyvec.Complement(maskedOut)
+			maskedOut.Mul(actual.Output())
+			maxMap := anyvec.MapMax(maskedOut, cols)
+
+			wrongs := anydiff.Map(maxMap, actual)
+			diffs := anydiff.Sub(wrongs, rights)
+			one := diffs.Output().Creator().MakeNumeric(1)
+			return anydiff.ClipPos(anydiff.AddScaler(diffs, one))
+		})
+	})
 }
