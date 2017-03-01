@@ -139,42 +139,87 @@ func (h Hinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 
 // MultiHinge implements multi-class hinge-loss.
 //
-// The hinge loss is defined as in Moore and DeNero, 2011.
-// See http://www.ttic.edu/sigml/symposium2011/papers/Moore+DeNero_Regularization.pdf.
-type MultiHinge struct{}
+// If MaxOnly is true, the Crammer-Singer hinge loss is
+// used.
+// See http://www.jmlr.org/papers/volume2/crammer01a/crammer01a.pdf and
+// http://www.ttic.edu/sigml/symposium2011/papers/Moore+DeNero_Regularization.pdf.
+//
+// If MaxOnly is false, the cumulative hinge loss from
+// Weston and Watkins is used.
+// See http://cs231n.github.io/linear-classify/#svm and
+// https://www.elen.ucl.ac.be/Proceedings/esann/esannpdf/es1999-461.pdf.
+type MultiHinge struct {
+	MaxOnly bool
+}
 
 // Cost computes the hinge loss for each batch.
 //
 // The desired vector for each batch should have all zero
 // elements except for a single 1.
 // The 1 is taken to mark the spot of the correct class.
+//
+// Typically, the desired vector should be a constant.
+// The gradient of the desired output means nothing, since
+// the desired output has a specific binary format.
 func (m MultiHinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
+	return anydiff.Pool(desired, func(desired anydiff.Res) anydiff.Res {
+		return anydiff.Pool(actual, func(actual anydiff.Res) anydiff.Res {
+			if m.MaxOnly {
+				return m.costMaxOnly(desired, actual, n)
+			} else {
+				return m.costSum(desired, actual, n)
+			}
+		})
+	})
+}
+
+func (m MultiHinge) costMaxOnly(desired, actual anydiff.Res, n int) anydiff.Res {
 	// We ignore the desired output via scaling by 0.
 	// In order for that to work, every vector component
 	// must be non-negative.
 	offset := anyvec.AbsMax(actual.Output())
 	actual = anydiff.AddScaler(actual, offset)
 
-	return anydiff.Pool(desired, func(desired anydiff.Res) anydiff.Res {
-		return anydiff.Pool(actual, func(actual anydiff.Res) anydiff.Res {
-			cols := desired.Output().Len() / n
-			rights := anydiff.SumCols(
-				&anydiff.Matrix{
-					Data: anydiff.Mul(desired, actual),
-					Rows: n,
-					Cols: cols,
-				},
-			)
+	cols := desired.Output().Len() / n
+	rights := anydiff.SumCols(
+		&anydiff.Matrix{
+			Data: anydiff.Mul(desired, actual),
+			Rows: n,
+			Cols: cols,
+		},
+	)
 
-			maskedOut := desired.Output().Copy()
-			anyvec.Complement(maskedOut)
-			maskedOut.Mul(actual.Output())
-			maxMap := anyvec.MapMax(maskedOut, cols)
+	maskedOut := desired.Output().Copy()
+	anyvec.Complement(maskedOut)
+	maskedOut.Mul(actual.Output())
+	maxMap := anyvec.MapMax(maskedOut, cols)
 
-			wrongs := anydiff.Map(maxMap, actual)
-			diffs := anydiff.Sub(wrongs, rights)
-			one := diffs.Output().Creator().MakeNumeric(1)
-			return anydiff.ClipPos(anydiff.AddScaler(diffs, one))
-		})
-	})
+	wrongs := anydiff.Map(maxMap, actual)
+	diffs := anydiff.Sub(wrongs, rights)
+	one := diffs.Output().Creator().MakeNumeric(1)
+	return anydiff.ClipPos(anydiff.AddScaler(diffs, one))
+}
+
+func (m MultiHinge) costSum(desired, actual anydiff.Res, n int) anydiff.Res {
+	cols := desired.Output().Len() / n
+	rights := anydiff.SumCols(
+		&anydiff.Matrix{
+			Data: anydiff.Mul(desired, actual),
+			Rows: n,
+			Cols: cols,
+		},
+	)
+
+	mask := anydiff.Complement(desired)
+
+	repeated := anydiff.ScaleRows(&anydiff.Matrix{
+		Data: mask,
+		Rows: n,
+		Cols: cols,
+	}, rights).Data
+	differences := anydiff.Sub(actual, repeated)
+	margins := anydiff.AddScaler(differences, mask.Output().Creator().MakeNumeric(1))
+	subCosts := anydiff.ClipPos(anydiff.Mul(margins, mask))
+
+	return anydiff.SumCols(&anydiff.Matrix{Data: subCosts, Rows: n, Cols: cols})
 }
