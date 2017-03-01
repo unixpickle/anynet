@@ -67,8 +67,8 @@ func TestHinge(t *testing.T) {
 }
 
 func TestMultiHinge(t *testing.T) {
-	t.Run("Full", func(t *testing.T) {
-		testCost(t, MultiHinge{}, []float32{
+	t.Run("WW", func(t *testing.T) {
+		testCost(t, WestonWatkins, []float32{
 			0, 1, 0,
 			0, 0, 1,
 			1, 0, 0,
@@ -80,8 +80,8 @@ func TestMultiHinge(t *testing.T) {
 			0.5, 2, 7,
 		}, 3)
 	})
-	t.Run("MaxOnly", func(t *testing.T) {
-		testCost(t, MultiHinge{MaxOnly: true}, []float32{
+	t.Run("CS", func(t *testing.T) {
+		testCost(t, CrammerSinger, []float32{
 			0, 1, 0,
 			0, 0, 1,
 		}, []float32{
@@ -97,20 +97,20 @@ func TestMultiHingeProp(t *testing.T) {
 	v1 := anydiff.NewVar(anyvec32.MakeVectorData([]float32{1, 2, 2.5, 3, 3.5, 4, 4.5, 5}))
 	v2 := anydiff.NewVar(anyvec32.MakeVectorData([]float32{0, 0, 1, 0, 1, 0, 0, 0}))
 
-	t.Run("Full", func(t *testing.T) {
+	t.Run("WW", func(t *testing.T) {
 		checker := &anydifftest.ResChecker{
 			F: func() anydiff.Res {
-				return MultiHinge{}.Cost(v2, v1, 2)
+				return WestonWatkins.Cost(v2, v1, 2)
 			},
 			V: []*anydiff.Var{v1},
 		}
 		checker.FullCheck(t)
 	})
 
-	t.Run("MaxOnly", func(t *testing.T) {
+	t.Run("CS", func(t *testing.T) {
 		checker := &anydifftest.ResChecker{
 			F: func() anydiff.Res {
-				return MultiHinge{MaxOnly: true}.Cost(v2, v1, 2)
+				return CrammerSinger.Cost(v2, v1, 2)
 			},
 			V: []*anydiff.Var{v1},
 		}

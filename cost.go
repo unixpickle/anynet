@@ -137,20 +137,27 @@ func (h Hinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	return anydiff.SumCols(m)
 }
 
-// MultiHinge implements multi-class hinge-loss.
+// MultiHinge is a multi-class hinge loss.
 //
-// If MaxOnly is true, the Crammer-Singer hinge loss is
-// used.
-// See http://www.jmlr.org/papers/volume2/crammer01a/crammer01a.pdf and
+// There are several different ways to generalize the
+// hinge loss to multi-class settings.
+// The MultiHinge aims to implement those ways.
+type MultiHinge int
+
+// CrammerSinger is the hinge loss described in
+// http://www.jmlr.org/papers/volume2/crammer01a/crammer01a.pdf and
 // http://www.ttic.edu/sigml/symposium2011/papers/Moore+DeNero_Regularization.pdf.
 //
-// If MaxOnly is false, the cumulative hinge loss from
-// Weston and Watkins is used.
-// See http://cs231n.github.io/linear-classify/#svm and
-// https://www.elen.ucl.ac.be/Proceedings/esann/esannpdf/es1999-461.pdf.
-type MultiHinge struct {
-	MaxOnly bool
-}
+// WestonWatkins is the hinge loss described in
+// https://www.elen.ucl.ac.be/Proceedings/esann/esannpdf/es1999-461.pdf and
+// http://cs231n.github.io/linear-classify/#svm.
+//
+// See http://www.jmlr.org/papers/volume17/11-229/11-229.pdf
+// for details on different hinge losses.
+const (
+	CrammerSinger MultiHinge = iota
+	WestonWatkins
+)
 
 // Cost computes the hinge loss for each batch.
 //
@@ -164,10 +171,12 @@ type MultiHinge struct {
 func (m MultiHinge) Cost(desired, actual anydiff.Res, n int) anydiff.Res {
 	return anydiff.Pool(desired, func(desired anydiff.Res) anydiff.Res {
 		return anydiff.Pool(actual, func(actual anydiff.Res) anydiff.Res {
-			if m.MaxOnly {
+			if m == CrammerSinger {
 				return m.costMaxOnly(desired, actual, n)
-			} else {
+			} else if m == WestonWatkins {
 				return m.costSum(desired, actual, n)
+			} else {
+				panic("invalid MultiHinge")
 			}
 		})
 	})
