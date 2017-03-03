@@ -24,6 +24,7 @@ func TestConvSerialize(t *testing.T) {
 		InputDepth:   2,
 	}
 	conv.InitRand(anyvec32.DefaultCreator{})
+	conv.Conver = MakeDefaultConver(*conv)
 	data, err := serializer.SerializeAny(conv)
 	if err != nil {
 		t.Fatal(err)
@@ -32,6 +33,12 @@ func TestConvSerialize(t *testing.T) {
 	if err := serializer.DeserializeAny(data, &newConv); err != nil {
 		t.Fatal(err)
 	}
+	if newConv.Conver == nil {
+		t.Fatal("no conver set")
+	}
+
+	// Set for deep equal.
+	newConv.Conver = conv.Conver
 	if !reflect.DeepEqual(newConv, conv) {
 		t.Fatal("layers differ")
 	}
@@ -65,6 +72,7 @@ func TestConvOutput(t *testing.T) {
 			-0.061039, -0.465844, 2.731102, -0.231307,
 		})),
 	}
+	layer.Conver = MakeDefaultConver(*layer)
 	img := anyvec32.MakeVector(10 * 9 * 2 * 2)
 	anyvec.Rand(img, anyvec.Normal, nil)
 
@@ -113,6 +121,7 @@ func TestConvProp(t *testing.T) {
 			-0.061039, -0.465844, 2.731102, -0.231307,
 		})),
 	}
+	layer.Conver = MakeDefaultConver(*layer)
 	img := anyvec32.MakeVector(10 * 9 * 2 * 2)
 	anyvec.Rand(img, anyvec.Normal, nil)
 	inVar := anydiff.NewVar(img)

@@ -5,8 +5,10 @@ package anyconv
 import (
 	"errors"
 	"math"
+	"sync"
 
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
 	"github.com/unixpickle/essentials"
@@ -16,6 +18,61 @@ import (
 func init() {
 	var c Conv
 	serializer.RegisterTypedDeserializer(c.SerializerType(), DeserializeConv)
+}
+
+// A Conver implements a specific convolution operation,
+// where the filter sizes and input sizes are already
+// determined.
+type Conver interface {
+	anynet.Layer
+}
+
+// A ConverMaker constructs new Convers for a given set of
+// layer parameters.
+type ConverMaker func(info Conv) Conver
+
+var converMakerLock sync.RWMutex
+var converMaker ConverMaker = MakeDefaultConver
+
+// SetConverMaker sets the function which should be used
+// to create new Convers.
+// The maker is used when deserializing Conv layers or
+// when parsing markup.
+func SetConverMaker(f ConverMaker) {
+	converMakerLock.Lock()
+	converMaker = f
+	converMakerLock.Unlock()
+}
+
+// CurrentConverMaker returns the current function for
+// creating Convers.
+func CurrentConverMaker() ConverMaker {
+	converMakerLock.RLock()
+	defer converMakerLock.RUnlock()
+	return converMaker
+}
+
+// MakeDefaultConver is the default ConverMaker.
+// It returns Convers that use anyvec primitives to
+// perform convolution.
+func MakeDefaultConver(c Conv) Conver {
+	if c.Biases == nil || c.Filters == nil {
+		panic("nil parameters")
+	}
+	return &conver{
+		conv: c,
+		im2row: &Im2Row{
+			WindowWidth:  c.FilterWidth,
+			WindowHeight: c.FilterHeight,
+
+			StrideX: c.StrideX,
+			StrideY: c.StrideY,
+
+			InputWidth:  c.InputWidth,
+			InputHeight: c.InputHeight,
+			InputDepth:  c.InputDepth,
+		},
+	}
 }
 
 // Conv is a convolutional layer.
@@ -36,10 +93,12 @@ type Conv struct {
 	Filters *anydiff.Var
 	Biases  *anydiff.Var
 
-	im2row *Im2Row
+	Conver Conver
 }
 
 // DeserializeConv deserialize a Conv.
+//
+// The Conver is automatically set.
 func DeserializeConv(d []byte) (*Conv, error) {
 	var inW, inH, inD, fW, fH, sX, sY serializer.Int
 	var f, b *anyvecsave.S
@@ -47,7 +106,7 @@ func DeserializeConv(d []byte) (*Conv, error) {
 	if err != nil {
 		return nil, essentials.AddCtx("deserialize Conv", err)
 	}
-	return &Conv{
+	res := Conv{
 		FilterCount:  f.Vector.Len() / int(fW*fH*inD),
 		FilterWidth:  int(fW),
 		FilterHeight: int(fH),
@@ -60,11 +119,13 @@ func DeserializeConv(d []byte) (*Conv, error) {
 
 		Filters: anydiff.NewVar(f.Vector),
 		Biases:  anydiff.NewVar(b.Vector),
-	}, nil
+	}
+	res.Conver = CurrentConverMaker()(res)
+	return &res, nil
 }
 
-// InitRand initializes the layer and randomizes the
-// filters.
+// InitRand the biases an filters in a randomized fashion
+// and sets the Conver.
 func (c *Conv) InitRand(cr anyvec.Creator) {
 	c.InitZero(cr)
 
@@ -73,11 +134,13 @@ func (c *Conv) InitRand(cr anyvec.Creator) {
 	c.Filters.Vector.Scale(cr.MakeNumeric(normalizer))
 }
 
-// InitZero initializes the layer to zero.
+// InitZero initializes the layer to zero and sets the
+// Conver.
 func (c *Conv) InitZero(cr anyvec.Creator) {
 	filterSize := c.FilterWidth * c.FilterHeight * c.InputDepth
 	c.Filters = anydiff.NewVar(cr.MakeVector(filterSize * c.FilterCount))
 	c.Biases = anydiff.NewVar(cr.MakeVector(c.FilterCount))
+	c.Conver = CurrentConverMaker()(*c)
 }
 
 // OutputWidth returns the width of the output tensor.
@@ -105,58 +168,10 @@ func (c *Conv) OutputDepth() int {
 	return c.FilterCount
 }
 
-// Apply applies the layer an input tensor.
-//
-// The layer must have been initialized.
-//
-// This is not thread-safe.
-//
-// After you apply a Conv, you should not modify
-// its fields again.
+// Apply applies the layer to an input tensor using the
+// Conver.
 func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
-	if c.Filters == nil || c.Biases == nil {
-		panic("cannot apply uninitialized Conv")
-	} else if c.OutputWidth() == 0 || c.OutputHeight() == 0 {
-		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
-	}
-	if c.im2row == nil {
-		c.initIm2Row()
-	}
-	imgSize := c.InputWidth * c.InputHeight * c.InputDepth
-	if in.Output().Len() != batchSize*imgSize {
-		panic("incorrect input size")
-	}
-
-	filterMatrix := c.filterMatrix()
-	outImgSize := c.OutputWidth() * c.OutputHeight() * c.OutputDepth()
-
-	var productResults []anyvec.Vector
-	c.im2row.MapAll(in.Output(), func(_ int, imgMatrix *anyvec.Matrix) {
-		prodMat := &anyvec.Matrix{
-			Data: in.Output().Creator().MakeVector(outImgSize),
-			Rows: c.OutputWidth() * c.OutputHeight(),
-			Cols: c.OutputDepth(),
-		}
-		prodMat.Product(false, true, in.Output().Creator().MakeNumeric(1),
-			imgMatrix, filterMatrix, in.Output().Creator().MakeNumeric(0))
-		productResults = append(productResults, prodMat.Data)
-	})
-
-	outData := in.Output().Creator().Concat(productResults...)
-	anyvec.AddRepeated(outData, c.Biases.Vector)
-
-	ourVars := anydiff.VarSet{}
-	ourVars.Add(c.Filters)
-	ourVars.Add(c.Biases)
-	merged := anydiff.MergeVarSets(in.Vars(), ourVars)
-
-	return &convRes{
-		Layer:  c,
-		N:      batchSize,
-		In:     in,
-		OutVec: outData,
-		V:      merged,
-	}
+	return c.Conver.Apply(in, batchSize)
 }
 
 // Parameters returns the layer's parameters.
@@ -197,29 +212,71 @@ func (c *Conv) Serialize() ([]byte, error) {
 	)
 }
 
-func (c *Conv) initIm2Row() {
-	c.im2row = &Im2Row{
-		WindowWidth:  c.FilterWidth,
-		WindowHeight: c.FilterHeight,
+type conver struct {
+	conv   Conv
+	im2row *Im2Row
+}
 
-		StrideX: c.StrideX,
-		StrideY: c.StrideY,
+// Apply applies the layer an input tensor.
+//
+// The layer must have been initialized.
+//
+// This is not thread-safe.
+//
+// After you apply a Conv, you should not modify
+// its fields again.
+func (c *conver) Apply(in anydiff.Res, batchSize int) anydiff.Res {
+	if c.conv.OutputWidth() == 0 || c.conv.OutputHeight() == 0 {
+		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
+	}
+	imgSize := c.conv.InputWidth * c.conv.InputHeight * c.conv.InputDepth
+	if in.Output().Len() != batchSize*imgSize {
+		panic("incorrect input size")
+	}
 
-		InputWidth:  c.InputWidth,
-		InputHeight: c.InputHeight,
-		InputDepth:  c.InputDepth,
+	filterMatrix := c.filterMatrix()
+	outImgSize := c.conv.OutputWidth() * c.conv.OutputHeight() * c.conv.OutputDepth()
+
+	var productResults []anyvec.Vector
+	c.im2row.MapAll(in.Output(), func(_ int, imgMatrix *anyvec.Matrix) {
+		prodMat := &anyvec.Matrix{
+			Data: in.Output().Creator().MakeVector(outImgSize),
+			Rows: c.conv.OutputWidth() * c.conv.OutputHeight(),
+			Cols: c.conv.OutputDepth(),
+		}
+		prodMat.Product(false, true, in.Output().Creator().MakeNumeric(1),
+			imgMatrix, filterMatrix, in.Output().Creator().MakeNumeric(0))
+		productResults = append(productResults, prodMat.Data)
+	})
+
+	outData := in.Output().Creator().Concat(productResults...)
+	anyvec.AddRepeated(outData, c.conv.Biases.Vector)
+
+	ourVars := anydiff.VarSet{}
+	ourVars.Add(c.conv.Filters)
+	ourVars.Add(c.conv.Biases)
+	merged := anydiff.MergeVarSets(in.Vars(), ourVars)
+
+	return &convRes{
+		Conver: c,
+		Layer:  &c.conv,
+		N:      batchSize,
+		In:     in,
+		OutVec: outData,
+		V:      merged,
 	}
 }
 
-func (c *Conv) filterMatrix() *anyvec.Matrix {
+func (c *conver) filterMatrix() *anyvec.Matrix {
 	return &anyvec.Matrix{
-		Data: c.Filters.Vector,
-		Rows: c.FilterCount,
-		Cols: c.FilterWidth * c.FilterHeight * c.InputDepth,
+		Data: c.conv.Filters.Vector,
+		Rows: c.conv.FilterCount,
+		Cols: c.conv.FilterWidth * c.conv.FilterHeight * c.conv.InputDepth,
 	}
 }
 
 type convRes struct {
+	Conver *conver
 	Layer  *Conv
 	N      int
 	In     anydiff.Res
@@ -241,7 +298,7 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 	outSize := u.Len() / c.N
 	inSize := c.In.Output().Len() / c.N
 
-	filterMat := c.Layer.filterMatrix()
+	filterMat := c.Conver.filterMatrix()
 
 	one := u.Creator().MakeNumeric(1)
 	zero := u.Creator().MakeNumeric(0)
@@ -265,7 +322,7 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 		if doIn {
 			imgMat.Product(false, false, one, uMat, filterMat, zero)
 			inUp := u.Creator().MakeVector(inSize)
-			c.Layer.im2row.Mapper(u.Creator()).MapTranspose(imgMat.Data, inUp)
+			c.Conver.im2row.Mapper(u.Creator()).MapTranspose(imgMat.Data, inUp)
 			inputUpstreams = append(inputUpstreams, inUp)
 		}
 	})
@@ -278,9 +335,9 @@ func (c *convRes) Propagate(u anyvec.Vector, g anydiff.Grad) {
 
 func (c *convRes) loopImageMatrix(g anydiff.Grad, f func(i int, m *anyvec.Matrix)) {
 	if _, ok := g[c.Layer.Filters]; ok {
-		c.Layer.im2row.MapAll(c.In.Output(), f)
+		c.Conver.im2row.MapAll(c.In.Output(), f)
 	} else {
-		imgMat := c.Layer.im2row.MakeOut(c.In.Output().Creator())
+		imgMat := c.Conver.im2row.MakeOut(c.In.Output().Creator())
 		for i := 0; i < c.N; i++ {
 			f(i, imgMat)
 		}
