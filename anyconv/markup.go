@@ -23,17 +23,15 @@ func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 	if err != nil {
 		return nil, errors.New("make markup block: " + err.Error())
 	}
-	return FromMarkupBlock(c, block)
+	return FromMarkupBlock(c, block, convmarkup.Dims{})
 }
 
 // FromMarkupBlock creates a neural network from a parsed
 // markup block.
-func FromMarkupBlock(c anyvec.Creator, b convmarkup.Block) (anynet.Layer, error) {
-	return fromMarkupBlock(convmarkup.Dims{}, c, b)
-}
-
-func fromMarkupBlock(inDims convmarkup.Dims, c anyvec.Creator,
-	b convmarkup.Block) (anynet.Layer, error) {
+//
+// If the block is a root block, then inDims is typically
+// going to be ignored.
+func FromMarkupBlock(c anyvec.Creator, b convmarkup.Block, inDims convmarkup.Dims) (anynet.Layer, error) {
 	switch b := b.(type) {
 	case *convmarkup.Root:
 		return netForChildren(inDims, c, b.Children)
@@ -108,7 +106,7 @@ func netForChildren(inDims convmarkup.Dims, c anyvec.Creator,
 				res = append(res, net...)
 			}
 		} else {
-			layer, err := fromMarkupBlock(inDims, c, x)
+			layer, err := FromMarkupBlock(c, x, inDims)
 			if err != nil {
 				return nil, err
 			}
