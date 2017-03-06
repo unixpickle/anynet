@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/convmarkup"
@@ -82,6 +83,17 @@ func FromMarkupBlock(c anyvec.Creator, b convmarkup.Block, inDims convmarkup.Dim
 			Depth:        inDims.Depth,
 			OutputWidth:  b.Out.Width,
 			OutputHeight: b.Out.Height,
+		}, nil
+	case *convmarkup.Linear:
+		scalerVec := c.MakeVector(1)
+		scalerVec.AddScaler(c.MakeNumeric(b.Scale))
+		biasVec := c.MakeVector(1)
+		biasVec.AddScaler(c.MakeNumeric(b.Bias))
+		return &anynet.ParamHider{
+			Layer: &anynet.Affine{
+				Scalers: anydiff.NewVar(scalerVec),
+				Biases:  anydiff.NewVar(biasVec),
+			},
 		}, nil
 	default:
 		return nil, fmt.Errorf("unexpected markup block: %s", b.Type())
