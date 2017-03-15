@@ -26,19 +26,21 @@ func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 	}
 	chain := convmarkup.RealizerChain{convmarkup.MetaRealizer{},
 		Realizer(c)}
-	instance, err := chain.Realize(convmarkup.Dims{}, block)
+	instance, _, err := chain.Realize(convmarkup.Dims{}, block)
 	if err != nil {
 		return nil, errors.New("realize markup block: " + err.Error())
 	}
 	if layer, ok := instance.(anynet.Layer); ok {
 		return layer, nil
 	} else {
-		return nil, fmt.Errorf("bad markup block type: %T", instance)
+		return nil, fmt.Errorf("not any anynet.Layer: %T", instance)
 	}
 }
 
 // Realizer creates a convmarkup.Realizer capable of
 // realizing convolutional networks, residual layers, etc.
+//
+// Realized objects will all implement anynet.Layer.
 //
 // The Realizer is meant to be used in conjunction with an
 // anyconv.MetaRealizer.
@@ -91,14 +93,14 @@ func (r *realizer) net(chain convmarkup.RealizerChain, inDims convmarkup.Dims,
 			}
 			continue
 		}
-		obj, err := chain.Realize(inDims, b)
+		obj, _, err := chain.Realize(inDims, b)
 		if err != nil {
 			return nil, err
 		} else if obj != nil {
 			if layer, ok := obj.(anynet.Layer); ok {
 				res = append(res, layer)
 			} else {
-				return nil, fmt.Errorf("unexpected instance type: %T", obj)
+				return nil, fmt.Errorf("not an anynet.Layer: %T", obj)
 			}
 		}
 		inDims = b.OutDims()
