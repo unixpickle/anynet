@@ -33,7 +33,7 @@ func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 	if layer, ok := instance.(anynet.Layer); ok {
 		return layer, nil
 	} else {
-		return nil, fmt.Errorf("not any anynet.Layer: %T", instance)
+		return nil, fmt.Errorf("not an anynet.Layer: %T", instance)
 	}
 }
 
