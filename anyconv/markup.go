@@ -43,7 +43,14 @@ func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 // Realized objects will all implement anynet.Layer.
 //
 // The Realizer is meant to be used in conjunction with an
-// anyconv.MetaRealizer.
+// convmarkup.MetaRealizer.
+// For example, you might do:
+//
+//     convmarkup.RealizerChain{
+//         convmarkup.MetaRealizer{},
+//         anyconv.Realizer(creator),
+//     }
+//
 func Realizer(c anyvec.Creator) convmarkup.Realizer {
 	return &realizer{creator: c}
 }
@@ -141,8 +148,7 @@ func (r *realizer) residual(chain convmarkup.RealizerChain, d convmarkup.Dims,
 }
 
 func (r *realizer) fc(d convmarkup.Dims, b *convmarkup.FC) (anynet.Layer, error) {
-	inSize := d.Width * d.Height * d.Depth
-	return anynet.NewFC(r.creator, inSize, b.OutCount), nil
+	return anynet.NewFC(r.creator, d.Volume(), b.OutCount), nil
 }
 
 func (r *realizer) activation(d convmarkup.Dims, b *convmarkup.Activation) (anynet.Layer, error) {
