@@ -80,6 +80,8 @@ func (r *realizer) Realize(chain convmarkup.RealizerChain, inDims convmarkup.Dim
 		return r.resize(inDims, b)
 	case *convmarkup.Linear:
 		return r.linear(b)
+	case *convmarkup.Dropout:
+		return r.dropout(b)
 	default:
 		return nil, convmarkup.ErrUnsupportedBlock
 	}
@@ -228,4 +230,8 @@ func (r *realizer) linear(b *convmarkup.Linear) (anynet.Layer, error) {
 			Biases:  anydiff.NewVar(biasVec),
 		},
 	}, nil
+}
+
+func (r *realizer) dropout(b *convmarkup.Dropout) (anynet.Layer, error) {
+	return &anynet.Dropout{KeepProb: b.Prob, Enabled: true}, nil
 }
