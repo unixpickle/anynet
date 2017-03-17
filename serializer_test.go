@@ -128,6 +128,21 @@ func TestAddMixerSerializer(t *testing.T) {
 	}
 }
 
+func TestConcatMixerSerializer(t *testing.T) {
+	mixer := ConcatMixer{}
+	data, err := serializer.SerializeAny(mixer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mixer1 ConcatMixer
+	if err := serializer.DeserializeAny(data, &mixer1); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(mixer1, mixer) {
+		t.Error("incorrect result")
+	}
+}
+
 func TestParamHiderSerialize(t *testing.T) {
 	net := &ParamHider{Layer: Tanh}
 	data, err := serializer.SerializeAny(net)

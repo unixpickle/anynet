@@ -9,6 +9,8 @@ import (
 func init() {
 	var a AddMixer
 	serializer.RegisterTypedDeserializer(a.SerializerType(), DeserializeAddMixer)
+	var c ConcatMixer
+	serializer.RegisterTypedDeserializer(c.SerializerType(), DeserializeConcatMixer)
 }
 
 // A Mixer combines batches of inputs from two different
@@ -65,4 +67,42 @@ func (a *AddMixer) SerializerType() string {
 // Serialize attempts to serialize the AddMixer.
 func (a *AddMixer) Serialize() ([]byte, error) {
 	return serializer.SerializeAny(a.In1, a.In2, a.Out)
+}
+
+// A ConcatMixer mixes inputs by concatenating inputs.
+type ConcatMixer struct{}
+
+// DeserializeConcatMixer deserializes a ConcatMixer.
+func DeserializeConcatMixer(d []byte) (ConcatMixer, error) {
+	return ConcatMixer{}, nil
+}
+
+// Mix produces a vector of concatenated vectors, like
+// [in1[0], in2[0], in1[1], in2[1], ...], where in1[n]
+// represents the n-th vector in the batch represented
+// by in1.
+func (c ConcatMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
+	return anydiff.Pool(in1, func(in1 anydiff.Res) anydiff.Res {
+		return anydiff.Pool(in2, func(in2 anydiff.Res) anydiff.Res {
+			var res []anydiff.Res
+			v1Len := in1.Output().Len() / batch
+			v2Len := in2.Output().Len() / batch
+			for i := 0; i < batch; i++ {
+				res = append(res, anydiff.Slice(in1, i*v1Len, (i+1)*v1Len),
+					anydiff.Slice(in2, i*v2Len, (i+1)*v2Len))
+			}
+			return anydiff.Concat(res...)
+		})
+	})
+}
+
+// SerializerType returns the unique ID used to serialize
+// a ConcatMixer with the serializer package.
+func (c ConcatMixer) SerializerType() string {
+	return "github.com/unixpickle/anynet.ConcatMixer"
+}
+
+// Serialize serializes the instance.
+func (c ConcatMixer) Serialize() ([]byte, error) {
+	return []byte{}, nil
 }
