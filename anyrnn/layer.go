@@ -65,7 +65,7 @@ func (l *LayerBlock) Step(s State, in anyvec.Vector) Res {
 // Parameters returns the parameters of the layer if it is
 // an anynet.Parameterizer.
 func (l *LayerBlock) Parameters() []*anydiff.Var {
-	return anynet.Net{l.Layer}.Parameters()
+	return anynet.AllParameters(l.Layer)
 }
 
 // SerializerType returns the unique ID used to serialize

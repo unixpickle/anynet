@@ -178,7 +178,7 @@ func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 // The filters come before the biases in the resulting
 // slice.
 //
-// If the layer is uninitialized, the result is nil
+// If the layer is uninitialized, the result is nil.
 func (c *Conv) Parameters() []*anydiff.Var {
 	if c.Filters == nil || c.Biases == nil {
 		return nil

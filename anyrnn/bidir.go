@@ -54,13 +54,7 @@ func (b *Bidir) Apply(in anyseq.Seq) anyseq.Seq {
 // Parameters returns the parameters of the blocks and
 // Mixer if they implement anynet.Parameterizer.
 func (b *Bidir) Parameters() []*anydiff.Var {
-	var res []*anydiff.Var
-	for _, x := range []interface{}{b.Forward, b.Backward, b.Mixer} {
-		if p, ok := x.(anynet.Parameterizer); ok {
-			res = append(res, p.Parameters()...)
-		}
-	}
-	return res
+	return anynet.AllParameters(b.Forward, b.Backward, b.Mixer)
 }
 
 // SerializerType returns the unique ID used to serialize

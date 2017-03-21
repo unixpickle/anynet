@@ -25,6 +25,21 @@ type Parameterizer interface {
 	Parameters() []*anydiff.Var
 }
 
+// AllParameters gathers the parameters from every
+// argument that implements Parameterizer, ignoring the
+// arguments that don't.
+// Parameters are fetched in order from the first to the
+// last argument.
+func AllParameters(args ...interface{}) []*anydiff.Var {
+	var res []*anydiff.Var
+	for _, x := range args {
+		if p, ok := x.(Parameterizer); ok {
+			res = append(res, p.Parameters()...)
+		}
+	}
+	return res
+}
+
 // A Layer is a composable computation unit for use in a
 // neural network.
 // In a feed-forward network, each layer's output is fed
@@ -70,17 +85,14 @@ func (n Net) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 
 // Parameters returns the parameters of the network.
 //
-// Every layer which implements Parameterizer will have
-// its parameters added to the slice.
-// Parameters are ordered from the first layer onwards.
+// This is equivalent to calling AllParameters on a slice
+// containing the layers of n (in order).
 func (n Net) Parameters() []*anydiff.Var {
-	var res []*anydiff.Var
-	for _, x := range n {
-		if p, ok := x.(Parameterizer); ok {
-			res = append(res, p.Parameters()...)
-		}
+	interfaces := make([]interface{}, len(n))
+	for i, x := range n {
+		interfaces[i] = x
 	}
-	return res
+	return AllParameters(interfaces...)
 }
 
 // SerializerType returns the unique ID used to serialize

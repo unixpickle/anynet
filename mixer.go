@@ -49,13 +49,7 @@ func (a *AddMixer) Mix(in1, in2 anydiff.Res, batch int) anydiff.Res {
 // Parameters gets the parameters of all the layers that
 // implement Parameterizer.
 func (a *AddMixer) Parameters() []*anydiff.Var {
-	var res []*anydiff.Var
-	for _, v := range []Layer{a.In1, a.In2, a.Out} {
-		if p, ok := v.(Parameterizer); ok {
-			res = append(res, p.Parameters()...)
-		}
-	}
-	return res
+	return AllParameters(a.In1, a.In2, a.Out)
 }
 
 // SerializerType returns the unique ID used to serialize
