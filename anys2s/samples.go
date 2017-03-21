@@ -23,30 +23,6 @@ type SampleList interface {
 	Creator() anyvec.Creator
 }
 
-// A SliceSampleList is a concrete SampleList with
-// predetermined samples.
-type SliceSampleList []*Sample
-
-// Len returns the number of samples.
-func (s SliceSampleList) Len() int {
-	return len(s)
-}
-
-// Swap swaps two samples.
-func (s SliceSampleList) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-// Slice copies a sub-slice of the list.
-func (s SliceSampleList) Slice(i, j int) anysgd.SampleList {
-	return append(SliceSampleList{}, s[i:j]...)
-}
-
-// GetSample returns the sample at the index.
-func (s SliceSampleList) GetSample(idx int) (*Sample, error) {
-	return s[idx], nil
-}
-
 // A SortableSampleList is a SampleList with an extra
 // LenAt method for efficiently getting the length of an
 // input sequence.
