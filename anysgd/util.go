@@ -73,7 +73,7 @@ func (e *ExpRater) Rate(t float64) float64 {
 func CosterGrad(c Coster, b Batch, params []*anydiff.Var) (anydiff.Grad,
 	anyvec.Numeric) {
 	grad := anydiff.NewGrad(params...)
-	cost := c.TotalCost(b.(*Batch))
+	cost := c.TotalCost(b)
 	cr := cost.Output().Creator()
 	data := cr.MakeNumericList([]float64{1})
 	upstream := cr.MakeVectorData(data)
