@@ -60,8 +60,9 @@ func (t *Trainer) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	}, nil
 }
 
-// TotalCost computes the total cost for the batch.
-func (t *Trainer) TotalCost(b *Batch) anydiff.Res {
+// TotalCost computes the total cost for the *Batch.
+func (t *Trainer) TotalCost(batch anysgd.Batch) anydiff.Res {
+	b := batch.(*Batch)
 	actual := t.Func(b.Inputs)
 
 	if len(actual.Output()) != len(b.Outputs.Output()) {
@@ -96,15 +97,7 @@ func (t *Trainer) TotalCost(b *Batch) anydiff.Res {
 //
 // The b argument must be a *Batch.
 func (t *Trainer) Gradient(b anysgd.Batch) anydiff.Grad {
-	res := anydiff.NewGrad(t.Params...)
-
-	cost := t.TotalCost(b.(*Batch))
-	t.LastCost = anyvec.Sum(cost.Output())
-
-	c := cost.Output().Creator()
-	data := c.MakeNumericList([]float64{1})
-	upstream := c.MakeVectorData(data)
-	cost.Propagate(upstream, res)
-
-	return res
+	grad, lc := anysgd.CosterGrad(t, b, t.Params)
+	t.LastCost = lc
+	return grad
 }

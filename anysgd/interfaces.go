@@ -86,3 +86,9 @@ type SampleList interface {
 type PostShuffler interface {
 	PostShuffle()
 }
+
+// A Coster computes differentiable costs for a Batch.
+// The resulting cost vectors should have one component.
+type Coster interface {
+	TotalCost(b Batch) anydiff.Res
+}

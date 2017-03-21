@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anyvec"
 )
 
 // Shuffle shuffles a list of samples.
@@ -65,6 +66,19 @@ type ExpRater struct {
 // Rate computes the rate for time t.
 func (e *ExpRater) Rate(t float64) float64 {
 	return e.Bias + e.Coeff*math.Pow(e.Decay, t)
+}
+
+// CosterGrad computes a gradient and a cost for the
+// batch.
+func CosterGrad(c Coster, b Batch, params []*anydiff.Var) (anydiff.Grad,
+	anyvec.Numeric) {
+	grad := anydiff.NewGrad(params...)
+	cost := c.TotalCost(b.(*Batch))
+	cr := cost.Output().Creator()
+	data := cr.MakeNumericList([]float64{1})
+	upstream := cr.MakeVectorData(data)
+	cost.Propagate(upstream, grad)
+	return grad, anyvec.Sum(cost.Output())
 }
 
 func copyGrad(g anydiff.Grad) anydiff.Grad {
