@@ -80,7 +80,7 @@ func TestVanillaOutput(t *testing.T) {
 
 func TestVanillaProp(t *testing.T) {
 	block := NewVanilla(anyvec32.CurrentCreator(), 3, 2, anynet.Tanh)
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(anyvec32.CurrentCreator(), 3)
 	if len(block.Parameters()) != 4 {
 		t.Errorf("expected 4 parameters, but got %d", len(block.Parameters()))
 	}

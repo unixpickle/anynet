@@ -12,7 +12,7 @@ import (
 )
 
 func TestLayerBlock(t *testing.T) {
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(anyvec32.CurrentCreator(), 3)
 	block := &LayerBlock{
 		Layer: anynet.Net{
 			anynet.NewFC(anyvec32.CurrentCreator(), 3, 2),
@@ -31,7 +31,7 @@ func TestLayerBlock(t *testing.T) {
 	checker.FullCheck(t)
 }
 
-func randomTestSequence(inSize int) (anyseq.Seq, []*anydiff.Var) {
+func randomTestSequence(c anyvec.Creator, inSize int) (anyseq.Seq, []*anydiff.Var) {
 	inVars := []*anydiff.Var{}
 	inBatches := []*anyseq.ResBatch{}
 
@@ -41,7 +41,7 @@ func randomTestSequence(inSize int) (anyseq.Seq, []*anydiff.Var) {
 
 	for chunkIdx, pres := range presents {
 		for i := 0; i < chunkLengths[chunkIdx]; i++ {
-			vec := anyvec32.MakeVector(inSize * numPres[chunkIdx])
+			vec := c.MakeVector(inSize * numPres[chunkIdx])
 			anyvec.Rand(vec, anyvec.Normal, nil)
 			v := anydiff.NewVar(vec)
 			batch := &anyseq.ResBatch{
@@ -52,5 +52,5 @@ func randomTestSequence(inSize int) (anyseq.Seq, []*anydiff.Var) {
 			inBatches = append(inBatches, batch)
 		}
 	}
-	return anyseq.ResSeq(anyvec32.CurrentCreator(), inBatches), inVars
+	return anyseq.ResSeq(c, inBatches), inVars
 }

@@ -13,7 +13,7 @@ import (
 
 func TestFuncBlock(t *testing.T) {
 	c := anyvec32.CurrentCreator()
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(c, 3)
 	stateFC := anynet.NewFC(c, 2, 2)
 	inputFC := anynet.NewFC(c, 3, 2)
 	outFC := anynet.NewFC(c, 2, 3)
@@ -48,7 +48,7 @@ func TestFuncBlock(t *testing.T) {
 
 func TestFuncBlockNilOut(t *testing.T) {
 	c := anyvec32.CurrentCreator()
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(c, 3)
 	fcBlock := anynet.NewFC(c, 3, 3)
 	startState := anydiff.NewVar(c.MakeVector(3))
 	anyvec.Rand(startState.Vector, anyvec.Normal, nil)

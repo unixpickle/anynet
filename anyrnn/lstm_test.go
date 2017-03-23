@@ -9,7 +9,7 @@ import (
 )
 
 func TestLSTMProp(t *testing.T) {
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(anyvec32.CurrentCreator(), 3)
 	block := NewLSTM(anyvec32.CurrentCreator(), 3, 2)
 	if len(block.Parameters()) != 18 {
 		t.Errorf("expected 18 parameters, but got %d", len(block.Parameters()))

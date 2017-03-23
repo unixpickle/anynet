@@ -37,7 +37,7 @@ func TestStackOutput(t *testing.T) {
 }
 
 func TestStackProp(t *testing.T) {
-	inSeq, inVars := randomTestSequence(3)
+	inSeq, inVars := randomTestSequence(anyvec32.CurrentCreator(), 3)
 	block := Stack{
 		&LayerBlock{
 			Layer: anynet.NewFC(anyvec32.CurrentCreator(), 3, 2),
