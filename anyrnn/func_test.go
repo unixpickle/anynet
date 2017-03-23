@@ -9,10 +9,11 @@ import (
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/anyvec/anyvec64"
 )
 
 func TestFuncBlock(t *testing.T) {
-	c := anyvec32.CurrentCreator()
+	c := anyvec64.CurrentCreator()
 	inSeq, inVars := randomTestSequence(c, 3)
 	stateFC := anynet.NewFC(c, 2, 2)
 	inputFC := anynet.NewFC(c, 3, 2)

@@ -4,7 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/serializer"
 )
@@ -56,6 +58,17 @@ func TestBidirSerialize(t *testing.T) {
 		},
 	}
 	testSerialize(t, b)
+}
+
+func TestFeedbackSerialize(t *testing.T) {
+	c := anyvec32.CurrentCreator()
+	vec := c.MakeVector(2)
+	anyvec.Rand(vec, anyvec.Normal, nil)
+	testSerialize(t, &Feedback{
+		Mixer:   anynet.ConcatMixer{},
+		Block:   NewLSTM(c, 3, 2),
+		InitOut: anydiff.NewVar(vec),
+	})
 }
 
 func testSerialize(t *testing.T, obj serializer.Serializer) {
