@@ -167,7 +167,9 @@ func (f *feedbackRes) Propagate(u anyvec.Vector, s StateGrad,
 	g anydiff.Grad) (anyvec.Vector, StateGrad) {
 	for _, p := range []*anydiff.Var{f.InPool, f.LastOutPool} {
 		g[p] = p.Vector.Creator().MakeVector(p.Vector.Len())
-		defer delete(g, p)
+		defer func(g anydiff.Grad, p *anydiff.Var) {
+			delete(g, p)
+		}(g, p)
 	}
 	var blockUpstream StateGrad
 	if s != nil {
