@@ -2,6 +2,7 @@ package anynet
 
 import (
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
@@ -24,6 +25,19 @@ func init() {
 type Affine struct {
 	Scalers *anydiff.Var
 	Biases  *anydiff.Var
+}
+
+// NewAffine creates an Affine layer with one scaler and
+// bias.
+func NewAffine(c anyvec.Creator, scaler, bias float64) *Affine {
+	scalerVec := c.MakeVector(1)
+	biasVec := c.MakeVector(1)
+	scalerVec.AddScaler(c.MakeNumeric(scaler))
+	biasVec.AddScaler(c.MakeNumeric(bias))
+	return &Affine{
+		Scalers: anydiff.NewVar(scalerVec),
+		Biases:  anydiff.NewVar(biasVec),
+	}
 }
 
 // DeserializeAffine deserializes an Affine layer.
