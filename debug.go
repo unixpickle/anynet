@@ -52,7 +52,7 @@ func (d *Debug) Apply(in anydiff.Res, n int) anydiff.Res {
 }
 
 func (d *Debug) println(args ...interface{}) {
-	newArgs := append([]interface{}{d.ID}, args...)
+	newArgs := append([]interface{}{"Debug (" + d.ID + "):"}, args...)
 	if d.Writer == nil {
 		fmt.Println(newArgs...)
 	} else {
