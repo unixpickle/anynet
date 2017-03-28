@@ -85,6 +85,13 @@ func (f *FC) Apply(in anydiff.Res, batch int) anydiff.Res {
 	return anydiff.AddRepeated(weighted.Data, f.Biases)
 }
 
+// AddBias adds a scaler to the biases.
+// It returns f for convenience.
+func (f *FC) AddBias(val anyvec.Numeric) *FC {
+	f.Biases.Vector.AddScaler(val)
+	return f
+}
+
 // Parameters returns a slice containing the weights
 // and the biases, in that order.
 func (f *FC) Parameters() []*anydiff.Var {
