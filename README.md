@@ -8,4 +8,4 @@
    * Tests for LSTM outputs
    * GRU
  * anysgd
-   * RMSProp
+   * Gradient clipping
