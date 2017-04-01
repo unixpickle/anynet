@@ -113,9 +113,8 @@ func (v *Vanilla) Step(s State, in anyvec.Vector) Res {
 	res := &vanillaRes{
 		InPool:    anydiff.NewVar(in),
 		StatePool: anydiff.NewVar(s.(*VecState).Vector),
-		V:         anydiff.VarSet{},
+		V:         anydiff.NewVarSet(v.Parameters()...),
 	}
-	res.V.Add(v.StartState)
 
 	wState := applyWeights(v.OutCount, v.OutCount, v.StateWeights, res.StatePool)
 	wInput := applyWeights(v.InCount, v.OutCount, v.InputWeights, res.InPool)
@@ -123,7 +122,6 @@ func (v *Vanilla) Step(s State, in anyvec.Vector) Res {
 	biased := anydiff.AddRepeated(sum, v.Biases)
 	res.Out = v.Activation.Apply(biased, s.Present().NumPresent())
 	res.OutState = &VecState{Vector: res.Out.Output(), PresentMap: s.Present()}
-	res.V = anydiff.MergeVarSets(res.V, res.Out.Vars())
 
 	return res
 }

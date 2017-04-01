@@ -118,14 +118,10 @@ func (l *LSTM) Step(s State, in anyvec.Vector) Res {
 	ls := s.(*LSTMState)
 
 	res := &lstmRes{
-		V:                anydiff.VarSet{},
+		V:                anydiff.NewVarSet(l.Parameters()...),
 		InPool:           anydiff.NewVar(in),
 		LastOutPool:      anydiff.NewVar(ls.LastOut.Vector),
 		LastInternalPool: anydiff.NewVar(ls.Internal.Vector),
-	}
-
-	for _, p := range l.Parameters() {
-		res.V.Add(p)
 	}
 
 	inVal := l.InValue.Apply(res.LastOutPool, res.InPool, res.LastInternalPool)
