@@ -6,7 +6,12 @@ import (
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/serializer"
 )
+
+func init() {
+	serializer.RegisterTypedDeserializer((&Debug{}).SerializerType(), DeserializeDebug)
+}
 
 // Debug is a layer which logs statistics about its
 // inputs.
@@ -21,6 +26,18 @@ type Debug struct {
 	PrintRaw      bool
 	PrintMean     bool
 	PrintVariance bool
+}
+
+// DeserializeDebug deserializes a Debug layer.
+// The Writer will be nil.
+func DeserializeDebug(d []byte) (*Debug, error) {
+	var res Debug
+	err := serializer.DeserializeAny(d, &res.ID, &res.PrintRaw, &res.PrintMean,
+		&res.PrintVariance)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 // Apply logs information about its input.
@@ -49,6 +66,17 @@ func (d *Debug) Apply(in anydiff.Res, n int) anydiff.Res {
 		}
 	}
 	return in
+}
+
+// SerializerType returns the unique ID used to serialize
+// a Debug layer with the serializer package.
+func (d *Debug) SerializerType() string {
+	return "github.com/unixpickle/anynet.Debug"
+}
+
+// Serialize serializes the layer.
+func (d *Debug) Serialize() ([]byte, error) {
+	return serializer.SerializeAny(d.ID, d.PrintRaw, d.PrintMean, d.PrintVariance)
 }
 
 func (d *Debug) println(args ...interface{}) {

@@ -157,3 +157,18 @@ func TestParamHiderSerialize(t *testing.T) {
 		t.Fatal("incorrect result")
 	}
 }
+
+func TestDebugSerialize(t *testing.T) {
+	net := &Debug{ID: "hey", PrintRaw: true, PrintVariance: true}
+	data, err := serializer.SerializeAny(net)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var net1 *Debug
+	if err := serializer.DeserializeAny(data, &net1); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(net, net1) {
+		t.Fatal("incorrect result")
+	}
+}
