@@ -71,6 +71,20 @@ func TestFeedbackSerialize(t *testing.T) {
 	})
 }
 
+func TestParallelSerialize(t *testing.T) {
+	c := anyvec32.CurrentCreator()
+	b := &Parallel{
+		Block1: NewVanilla(c, 5, 3, anynet.Tanh),
+		Block2: NewVanilla(c, 5, 2, anynet.Tanh),
+		Mixer: &anynet.AddMixer{
+			In1: anynet.NewFC(c, 3, 2),
+			In2: anynet.NewFC(c, 2, 2),
+			Out: anynet.Tanh,
+		},
+	}
+	testSerialize(t, b)
+}
+
 func testSerialize(t *testing.T, obj serializer.Serializer) {
 	data, err := serializer.SerializeWithType(obj)
 	if err != nil {
