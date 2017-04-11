@@ -115,5 +115,10 @@ type Res interface {
 	// All upstream objects may be modified.
 	// A call to Propagate may change u and s, meaning that s
 	// in particular should not be used again.
+	//
+	// The downstream input vector may be modified by the
+	// caller (e.g. as scratch space).
+	// Modifying said vector should not affect the returned
+	// downstream StateGrad.
 	Propagate(u anyvec.Vector, s StateGrad, g anydiff.Grad) (anyvec.Vector, StateGrad)
 }

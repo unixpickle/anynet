@@ -157,7 +157,6 @@ func (p *parallelRes) Propagate(u anyvec.Vector, s StateGrad,
 	}
 	inGrad1, downGrad1 := p.Res1.Propagate(g[p.Pool1], sg1, g)
 	inGrad2, downGrad2 := p.Res2.Propagate(g[p.Pool2], sg2, g)
-	inGrad := inGrad1.Copy()
-	inGrad.Add(inGrad2)
-	return inGrad, &ParallelGrad{Grad1: downGrad1, Grad2: downGrad2}
+	inGrad1.Add(inGrad2)
+	return inGrad1, &ParallelGrad{Grad1: downGrad1, Grad2: downGrad2}
 }
