@@ -32,8 +32,8 @@ type Affine struct {
 func NewAffine(c anyvec.Creator, scaler, bias float64) *Affine {
 	scalerVec := c.MakeVector(1)
 	biasVec := c.MakeVector(1)
-	scalerVec.AddScaler(c.MakeNumeric(scaler))
-	biasVec.AddScaler(c.MakeNumeric(bias))
+	scalerVec.AddScalar(c.MakeNumeric(scaler))
+	biasVec.AddScalar(c.MakeNumeric(bias))
 	return &Affine{
 		Scalers: anydiff.NewVar(scalerVec),
 		Biases:  anydiff.NewVar(biasVec),

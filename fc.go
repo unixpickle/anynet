@@ -88,7 +88,7 @@ func (f *FC) Apply(in anydiff.Res, batch int) anydiff.Res {
 // AddBias adds a scaler to the biases.
 // It returns f for convenience.
 func (f *FC) AddBias(val anyvec.Numeric) *FC {
-	f.Biases.Vector.AddScaler(val)
+	f.Biases.Vector.AddScalar(val)
 	return f
 }
 

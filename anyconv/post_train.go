@@ -176,7 +176,7 @@ func momentsFromOutputs(b *BatchNorm, c <-chan *postTrainerOutput) (mean,
 	sumSq.Mul(sum)
 
 	sqSum.Sub(sumSq)
-	sqSum.AddScaler(sqSum.Creator().MakeNumeric(b.stabilizer()))
+	sqSum.AddScalar(sqSum.Creator().MakeNumeric(b.stabilizer()))
 	anyvec.Pow(sqSum, sqSum.Creator().MakeNumeric(0.5))
 
 	return sum, sqSum, nil

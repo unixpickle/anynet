@@ -53,7 +53,7 @@ func (a *Adam) Transform(realGrad anydiff.Grad) anydiff.Grad {
 		vec.Scale(vec.Creator().MakeNumeric(scalingFactor))
 
 		divisor := secondVec.Copy()
-		divisor.AddScaler(divisor.Creator().MakeNumeric(damping))
+		divisor.AddScalar(divisor.Creator().MakeNumeric(damping))
 		anyvec.Pow(divisor, divisor.Creator().MakeNumeric(0.5))
 		vec.Div(divisor)
 	}

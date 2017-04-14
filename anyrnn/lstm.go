@@ -64,7 +64,7 @@ func NewLSTM(c anyvec.Creator, in, state int) *LSTM {
 		InitLastOut:  anydiff.NewVar(c.MakeVector(state)),
 		InitInternal: anydiff.NewVar(c.MakeVector(state)),
 	}
-	res.Remember.Biases.Vector.AddScaler(c.MakeNumeric(lstmRememberBias))
+	res.Remember.Biases.Vector.AddScalar(c.MakeNumeric(lstmRememberBias))
 	return res
 }
 

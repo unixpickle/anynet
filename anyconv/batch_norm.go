@@ -58,7 +58,7 @@ func DeserializeBatchNorm(d []byte) (*BatchNorm, error) {
 // NewBatchNorm creates a BatchNorm with an input size.
 func NewBatchNorm(c anyvec.Creator, inCount int) *BatchNorm {
 	oneScaler := c.MakeVector(inCount)
-	oneScaler.AddScaler(c.MakeNumeric(1))
+	oneScaler.AddScalar(c.MakeNumeric(1))
 	return &BatchNorm{
 		InputCount: inCount,
 		Scalers:    anydiff.NewVar(oneScaler),
@@ -78,7 +78,7 @@ func (b *BatchNorm) Apply(in anydiff.Res, batch int) anydiff.Res {
 		secondMoment := meanSquare(in, b.InputCount)
 		variance := anydiff.Sub(secondMoment, anydiff.Square(negMean))
 
-		variance = anydiff.AddScaler(variance, c.MakeNumeric(b.stabilizer()))
+		variance = anydiff.AddScalar(variance, c.MakeNumeric(b.stabilizer()))
 		normalizer := anydiff.Pow(variance, c.MakeNumeric(-0.5))
 
 		totalScaler := anydiff.Mul(b.Scalers, normalizer)

@@ -221,9 +221,9 @@ func (r *realizer) resize(d convmarkup.Dims, b *convmarkup.Resize) (anynet.Layer
 
 func (r *realizer) linear(b *convmarkup.Linear) (anynet.Layer, error) {
 	scalerVec := r.creator.MakeVector(1)
-	scalerVec.AddScaler(r.creator.MakeNumeric(b.Scale))
+	scalerVec.AddScalar(r.creator.MakeNumeric(b.Scale))
 	biasVec := r.creator.MakeVector(1)
-	biasVec.AddScaler(r.creator.MakeNumeric(b.Bias))
+	biasVec.AddScalar(r.creator.MakeNumeric(b.Bias))
 	return &anynet.ParamHider{
 		Layer: &anynet.Affine{
 			Scalers: anydiff.NewVar(scalerVec),

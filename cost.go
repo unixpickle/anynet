@@ -187,7 +187,7 @@ func (m MultiHinge) costMaxOnly(desired, actual anydiff.Res, n int) anydiff.Res 
 	// In order for that to work, every vector component
 	// must be non-negative.
 	offset := anyvec.AbsMax(actual.Output())
-	actual = anydiff.AddScaler(actual, offset)
+	actual = anydiff.AddScalar(actual, offset)
 
 	cols := desired.Output().Len() / n
 	rights := anydiff.SumCols(
@@ -206,7 +206,7 @@ func (m MultiHinge) costMaxOnly(desired, actual anydiff.Res, n int) anydiff.Res 
 	wrongs := anydiff.Map(maxMap, actual)
 	diffs := anydiff.Sub(wrongs, rights)
 	one := diffs.Output().Creator().MakeNumeric(1)
-	return anydiff.ClipPos(anydiff.AddScaler(diffs, one))
+	return anydiff.ClipPos(anydiff.AddScalar(diffs, one))
 }
 
 func (m MultiHinge) costSum(desired, actual anydiff.Res, n int) anydiff.Res {
@@ -227,7 +227,7 @@ func (m MultiHinge) costSum(desired, actual anydiff.Res, n int) anydiff.Res {
 		Cols: cols,
 	}, rights).Data
 	differences := anydiff.Sub(actual, repeated)
-	margins := anydiff.AddScaler(differences, mask.Output().Creator().MakeNumeric(1))
+	margins := anydiff.AddScalar(differences, mask.Output().Creator().MakeNumeric(1))
 	subCosts := anydiff.ClipPos(anydiff.Mul(margins, mask))
 
 	return anydiff.SumCols(&anydiff.Matrix{Data: subCosts, Rows: n, Cols: cols})

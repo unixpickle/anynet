@@ -37,7 +37,7 @@ func (g *GumbelSoftmax) Apply(in anydiff.Res, n int) anydiff.Res {
 	gumbel := c.MakeVector(in.Output().Len())
 	anyvec.Rand(gumbel, anyvec.Uniform, nil)
 	for i := 0; i < 2; i++ {
-		gumbel.AddScaler(c.MakeNumeric(gumbelEpsilon))
+		gumbel.AddScalar(c.MakeNumeric(gumbelEpsilon))
 		anyvec.Log(gumbel)
 		gumbel.Scale(c.MakeNumeric(-1))
 	}

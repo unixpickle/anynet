@@ -47,7 +47,7 @@ func (r *RMSProp) Transform(realGrad anydiff.Grad) anydiff.Grad {
 	}
 	for v, grad := range realGrad {
 		div := r.moment[v].Copy()
-		div.AddScaler(div.Creator().MakeNumeric(r.damping()))
+		div.AddScalar(div.Creator().MakeNumeric(r.damping()))
 		anyvec.Pow(div, div.Creator().MakeNumeric(-0.5))
 		grad.Mul(div)
 	}

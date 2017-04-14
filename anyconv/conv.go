@@ -355,7 +355,7 @@ func (c *convRes) propagateBiases(biasGrad, upstream anyvec.Vector) {
 		Rows: upMat.Rows,
 		Cols: 1,
 	}
-	oneMat.Data.AddScaler(upstream.Creator().MakeNumeric(1))
+	oneMat.Data.AddScalar(upstream.Creator().MakeNumeric(1))
 	resMat := &anyvec.Matrix{
 		Data: biasGrad,
 		Rows: biasGrad.Len(),

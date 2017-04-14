@@ -28,7 +28,7 @@ func TestVanillaSerialize(t *testing.T) {
 	v := NewVanilla(anyvec32.CurrentCreator(), 3, 2, anynet.Tanh)
 
 	// Make sure the biases are different than the init state.
-	v.Biases.Vector.AddScaler(float32(1))
+	v.Biases.Vector.AddScalar(float32(1))
 
 	testSerialize(t, v)
 }
@@ -37,7 +37,7 @@ func TestLSTMGateSerialize(t *testing.T) {
 	g := NewLSTMGate(anyvec32.CurrentCreator(), 3, 2, anynet.Sigmoid)
 
 	// Make sure the biases are different than the init state.
-	g.Biases.Vector.AddScaler(float32(1))
+	g.Biases.Vector.AddScalar(float32(1))
 
 	testSerialize(t, g)
 }
