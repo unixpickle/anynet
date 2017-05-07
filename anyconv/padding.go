@@ -1,6 +1,8 @@
 package anyconv
 
 import (
+	"sync"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
@@ -24,7 +26,8 @@ type Padding struct {
 	PaddingBottom int
 	PaddingLeft   int
 
-	mapper anyvec.Mapper
+	mapperLock sync.Mutex
+	mapper     anyvec.Mapper
 }
 
 // DeserializePadding deserializes a Padding.
@@ -47,12 +50,13 @@ func DeserializePadding(d []byte) (*Padding, error) {
 }
 
 // Apply applies the layer.
-//
-// This is not thread-safe.
 func (p *Padding) Apply(in anydiff.Res, batch int) anydiff.Res {
+	p.mapperLock.Lock()
 	if p.mapper == nil {
 		p.initMapper(in.Output().Creator())
 	}
+	p.mapperLock.Unlock()
+
 	if in.Output().Len() != batch*p.mapper.OutSize() {
 		panic("incorrect input size")
 	}

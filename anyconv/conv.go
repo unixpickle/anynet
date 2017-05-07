@@ -170,6 +170,8 @@ func (c *Conv) OutputDepth() int {
 
 // Apply applies the layer to an input tensor using the
 // Conver.
+//
+// The layer must have been initialized.
 func (c *Conv) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 	return c.Conver.Apply(in, batchSize)
 }
@@ -220,8 +222,6 @@ type conver struct {
 // Apply applies the layer an input tensor.
 //
 // The layer must have been initialized.
-//
-// This is not thread-safe.
 //
 // After you apply a Conv, you should not modify
 // its fields again.

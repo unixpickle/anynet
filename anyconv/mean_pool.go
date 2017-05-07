@@ -1,6 +1,8 @@
 package anyconv
 
 import (
+	"sync"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
@@ -26,7 +28,8 @@ type MeanPool struct {
 	InputHeight int
 	InputDepth  int
 
-	im2col anyvec.Mapper
+	im2colLock sync.Mutex
+	im2col     anyvec.Mapper
 }
 
 // DeserializeMeanPool deserializes a MeanPool.
@@ -63,9 +66,12 @@ func (m *MeanPool) OutputDepth() int {
 
 // Apply applies the pooling layer.
 func (m *MeanPool) Apply(in anydiff.Res, batchSize int) anydiff.Res {
+	m.im2colLock.Lock()
 	if m.im2col == nil {
 		m.initIm2Col(in.Output().Creator())
 	}
+	m.im2colLock.Unlock()
+
 	imgSize := m.im2col.InSize()
 	if in.Output().Len() != batchSize*imgSize {
 		panic("incorrect input size")

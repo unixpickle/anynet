@@ -1,6 +1,8 @@
 package anyconv
 
 import (
+	"sync"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
@@ -34,7 +36,8 @@ type MaxPool struct {
 	InputHeight int
 	InputDepth  int
 
-	im2col anyvec.Mapper
+	im2colLock sync.Mutex
+	im2col     anyvec.Mapper
 }
 
 // DeserializeMaxPool deserializes a MaxPool.
@@ -77,12 +80,12 @@ func (m *MaxPool) OutputDepth() int {
 }
 
 // Apply applies the layer to an input tensor.
-//
-// This is not thread-safe.
 func (m *MaxPool) Apply(in anydiff.Res, batchSize int) anydiff.Res {
+	m.im2colLock.Lock()
 	if m.im2col == nil {
 		m.initIm2Col(in.Output().Creator())
 	}
+	m.im2colLock.Unlock()
 
 	imgSize := m.InputWidth * m.InputHeight * m.InputDepth
 	if in.Output().Len() != batchSize*imgSize {

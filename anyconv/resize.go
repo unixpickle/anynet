@@ -1,6 +1,8 @@
 package anyconv
 
 import (
+	"sync"
+
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/essentials"
@@ -24,6 +26,7 @@ type Resize struct {
 	OutputWidth  int
 	OutputHeight int
 
+	mappingLock     sync.Mutex
 	neighborMap     anyvec.Mapper
 	neighborWeights anyvec.Vector
 }
@@ -45,8 +48,6 @@ func DeserializeResize(d []byte) (*Resize, error) {
 }
 
 // Apply applies the layer to an input tensor.
-//
-// This is not thread-safe.
 func (r *Resize) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 	if batchSize == 0 {
 		return anydiff.NewConst(in.Output().Creator().MakeVector(0))
@@ -59,9 +60,11 @@ func (r *Resize) Apply(in anydiff.Res, batchSize int) anydiff.Res {
 		panic("incorrect input size")
 	}
 
+	r.mappingLock.Lock()
 	if r.neighborMap == nil {
 		r.initializeMapping(in.Output().Creator())
 	}
+	r.mappingLock.Unlock()
 
 	mapped := batchMap(r.neighborMap, in.Output())
 	anyvec.ScaleRepeated(mapped, r.neighborWeights)
