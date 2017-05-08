@@ -78,6 +78,24 @@ func TestAffineSerialize(t *testing.T) {
 	}
 }
 
+func TestConstAffineSerialize(t *testing.T) {
+	affine := &ConstAffine{
+		Scale: 2,
+		Bias:  3.14,
+	}
+	data, err := serializer.SerializeAny(affine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newAffine *ConstAffine
+	if err := serializer.DeserializeAny(data, &newAffine); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(affine, newAffine) {
+		t.Fatal("incorrect result")
+	}
+}
+
 func TestDropoutSerialize(t *testing.T) {
 	do := &Dropout{Enabled: true, KeepProb: 0.335}
 	data, err := serializer.SerializeAny(do)

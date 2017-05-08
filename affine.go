@@ -11,12 +11,14 @@ import (
 func init() {
 	var a Affine
 	serializer.RegisterTypedDeserializer(a.SerializerType(), DeserializeAffine)
+	var c ConstAffine
+	serializer.RegisterTypedDeserializer(c.SerializerType(), DeserializeConstAffine)
 }
 
 // Affine is a layer which performs component-wise affine
 // transformations.
 //
-// In other wise, for every component x[i], it computes
+// In other words, for every component x[i], it computes
 //
 //     a[i%len(a)]*x[i] + b[i%len(b)]
 //
@@ -84,4 +86,45 @@ func (a *Affine) Serialize() ([]byte, error) {
 		&anyvecsave.S{Vector: a.Scalers.Vector},
 		&anyvecsave.S{Vector: a.Biases.Vector},
 	)
+}
+
+// ConstAffine is a layer which performs component-wise
+// affine transformations with a constant bias and scaler.
+//
+// In other words, each component x is transformed via:
+//
+//     a*x + b
+//
+type ConstAffine struct {
+	Scale float64
+	Bias  float64
+}
+
+// DeserializeConstAffine deserializes a ConstAffine.
+func DeserializeConstAffine(d []byte) (*ConstAffine, error) {
+	var res ConstAffine
+	if err := serializer.DeserializeAny(d, &res.Scale, &res.Bias); err != nil {
+		return nil, essentials.AddCtx("deserialize ConstAffine", err)
+	}
+	return &res, nil
+}
+
+// Apply applies the affine transformation.
+func (c *ConstAffine) Apply(in anydiff.Res, n int) anydiff.Res {
+	cr := in.Output().Creator()
+	return anydiff.AddScalar(
+		anydiff.Scale(in, cr.MakeNumeric(c.Scale)),
+		cr.MakeNumeric(c.Bias),
+	)
+}
+
+// SerializerType returns the unique ID used to serialize
+// a ConstAffine with the serializer package.
+func (c *ConstAffine) SerializerType() string {
+	return "github.com/unixpickle/anynet.ConstAffine"
+}
+
+// Serialize serializes a ConstAffine.
+func (c *ConstAffine) Serialize() ([]byte, error) {
+	return serializer.SerializeAny(c.Scale, c.Bias)
 }

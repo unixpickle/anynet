@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/convmarkup"
@@ -220,15 +219,9 @@ func (r *realizer) resize(d convmarkup.Dims, b *convmarkup.Resize) (anynet.Layer
 }
 
 func (r *realizer) linear(b *convmarkup.Linear) (anynet.Layer, error) {
-	scalerVec := r.creator.MakeVector(1)
-	scalerVec.AddScalar(r.creator.MakeNumeric(b.Scale))
-	biasVec := r.creator.MakeVector(1)
-	biasVec.AddScalar(r.creator.MakeNumeric(b.Bias))
-	return &anynet.ParamHider{
-		Layer: &anynet.Affine{
-			Scalers: anydiff.NewVar(scalerVec),
-			Biases:  anydiff.NewVar(biasVec),
-		},
+	return &anynet.ConstAffine{
+		Scale: b.Scale,
+		Bias:  b.Bias,
 	}, nil
 }
 
