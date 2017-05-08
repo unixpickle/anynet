@@ -2,6 +2,7 @@ package anynet
 
 import (
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anydiff/anyfwd"
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/serializer"
 )
@@ -41,4 +42,13 @@ func (p *ParamHider) SerializerType() string {
 // Serialize serializes the ParamHider.
 func (p *ParamHider) Serialize() ([]byte, error) {
 	return serializer.SerializeAny(p.Layer)
+}
+
+// MakeFwd converts the contained layer to use forward
+// automatic differentiation.
+//
+// This works so long as anyfwd.MakeFwd works on the
+// contained layer.
+func (p *ParamHider) MakeFwd(c *anyfwd.Creator) {
+	anyfwd.MakeFwd(c, p.Layer)
 }
