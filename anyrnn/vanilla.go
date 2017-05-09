@@ -98,6 +98,15 @@ func NewVanillaZero(c anyvec.Creator, in, out int, activation anynet.Layer) *Van
 	}
 }
 
+// ScaleInWeights scales the matrix entries that transform
+// input values into state values.
+//
+// See LSTM.ScaleInWeights for more details.
+func (v *Vanilla) ScaleInWeights(scaler anyvec.Numeric) *Vanilla {
+	v.InputWeights.Vector.Scale(scaler)
+	return v
+}
+
 // Start generates an initial *VecState.
 func (v *Vanilla) Start(n int) State {
 	return NewVecState(v.StartState.Vector, n)
