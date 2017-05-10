@@ -14,6 +14,9 @@ import (
 //
 // For details on this format, see:
 // https://github.com/unixpickle/convmarkup.
+//
+// For details on how Debug blocks are realized, see the
+// Realizer type.
 func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 	parsed, err := convmarkup.Parse(code)
 	if err != nil {
@@ -50,6 +53,9 @@ func FromMarkup(c anyvec.Creator, code string) (anynet.Layer, error) {
 //         anyconv.Realizer(creator),
 //     }
 //
+// Debug blocks are realized as anynet.Debug layers.
+// The variance, raw, and mean attributes can be set to 1
+// to enable the corresponding flags.
 func Realizer(c anyvec.Creator) convmarkup.Realizer {
 	return &realizer{creator: c}
 }
@@ -81,6 +87,8 @@ func (r *realizer) Realize(chain convmarkup.RealizerChain, inDims convmarkup.Dim
 		return r.linear(b)
 	case *convmarkup.Dropout:
 		return r.dropout(b)
+	case *convmarkup.Debug:
+		return r.debug(b)
 	default:
 		return nil, convmarkup.ErrUnsupportedBlock
 	}
@@ -227,4 +235,12 @@ func (r *realizer) linear(b *convmarkup.Linear) (anynet.Layer, error) {
 
 func (r *realizer) dropout(b *convmarkup.Dropout) (anynet.Layer, error) {
 	return &anynet.Dropout{KeepProb: b.Prob, Enabled: true}, nil
+}
+
+func (r *realizer) debug(b *convmarkup.Debug) (anynet.Layer, error) {
+	return &anynet.Debug{
+		PrintMean:     b.Attrs["mean"] == 1,
+		PrintRaw:      b.Attrs["raw"] == 1,
+		PrintVariance: b.Attrs["variance"] == 1,
+	}, nil
 }
