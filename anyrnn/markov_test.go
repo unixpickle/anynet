@@ -15,8 +15,7 @@ func TestMarkovOutput(t *testing.T) {
 	for _, mode := range []string{"Concat", "DepthWise"} {
 		t.Run(mode, func(t *testing.T) {
 			c := anyvec64.DefaultCreator{}
-			markov := NewMarkov(c, 2, 3)
-			markov.DepthWise = mode == "DepthWise"
+			markov := NewMarkov(c, 2, 3, mode == "DepthWise")
 			markov.StartState.Vector.SetData(
 				c.MakeNumericList([]float64{-1, -2, -3, -4, -5, -6}),
 			)
@@ -57,8 +56,7 @@ func TestMarkovOutput(t *testing.T) {
 
 func TestMarkovGradients(t *testing.T) {
 	c := anyvec64.DefaultCreator{}
-	markov := NewMarkov(c, 2, 3)
-	markov.DepthWise = true
+	markov := NewMarkov(c, 2, 3, true)
 	markov.StartState.Vector.SetData(
 		c.MakeNumericList([]float64{-1, -2, -3, -4, -5, -6}),
 	)
@@ -74,8 +72,7 @@ func TestMarkovGradients(t *testing.T) {
 
 func TestMarkovSerialize(t *testing.T) {
 	c := anyvec64.DefaultCreator{}
-	markov := NewMarkov(c, 2, 3)
-	markov.DepthWise = true
+	markov := NewMarkov(c, 2, 3, true)
 	markov.StartState.Vector.SetData(
 		c.MakeNumericList([]float64{-1, -2, -3, -4, -5, -6}),
 	)

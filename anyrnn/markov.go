@@ -24,6 +24,7 @@ type Markov struct {
 
 	// DepthWise controls how vectors from the history
 	// are concatenated.
+	//
 	// If false, then vectors a and b are joined to
 	//
 	//     <a1, a2, ..., b1, b2, ...>
@@ -32,21 +33,22 @@ type Markov struct {
 	//
 	//     <a1, b1, a2, b2, ...>
 	//
-	// In either case, the first component of the most
-	// recent timestep is packed before the first
-	// component of the second most recent timestep.
+	// In either case, the first component of more
+	// recent timesteps are packed before those of less
+	// recent timesteps.
 	DepthWise bool
 }
 
 // NewMarkov creates a Markov with the history size and
 // pre-known input vector size.
-func NewMarkov(c anyvec.Creator, history int, inSize int) *Markov {
+func NewMarkov(c anyvec.Creator, history int, inSize int, depthWise bool) *Markov {
 	if inSize == 0 || history == 0 {
 		panic("input and history sizes must be non-zero")
 	}
 	return &Markov{
 		StartState:  anydiff.NewVar(c.MakeVector(history * inSize)),
 		HistorySize: history,
+		DepthWise:   depthWise,
 	}
 }
 
