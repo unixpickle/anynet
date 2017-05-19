@@ -86,7 +86,7 @@ func (m *Markov) Parameters() []*anydiff.Var {
 // SerializerType returns the unique ID used to serialize
 // a Markov with the serializer package.
 func (m *Markov) SerializerType() string {
-	return "github.com/unixpickle/anynet/Markov"
+	return "github.com/unixpickle/anynet/anyrnn.Markov"
 }
 
 // Serialize serializes the Markov.
