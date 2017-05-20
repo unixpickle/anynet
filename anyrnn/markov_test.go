@@ -86,7 +86,7 @@ func TestMarkovBatching(t *testing.T) {
 					anyseq.SeparateSeqs(seqs.Output())[i:i+1],
 				)
 				singleOut := anyseq.SeparateSeqs(Map(subSeq, markov).Output())[0]
-				if !reflect.DeepEqual(subSeq, singleOut) {
+				if !reflect.DeepEqual(batchOut, singleOut) {
 					t.Errorf("got batch out %v but single out %v", batchOut, singleOut)
 				}
 			}
