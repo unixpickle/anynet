@@ -70,6 +70,30 @@ func TestMarkovGradients(t *testing.T) {
 	checker.FullCheck(t)
 }
 
+func TestMarkovBatching(t *testing.T) {
+	for _, mode := range []string{"Concat", "DepthWise"} {
+		t.Run(mode, func(t *testing.T) {
+			c := anyvec64.DefaultCreator{}
+			markov := NewMarkov(c, 2, 3, mode == "DepthWise")
+			markov.StartState.Vector.SetData(
+				c.MakeNumericList([]float64{-1, -2, -3, -4, -5, -6}),
+			)
+			seqs, _ := randomTestSequence(c, 3)
+			batchOuts := anyseq.SeparateSeqs(Map(seqs, markov).Output())
+			for i, batchOut := range batchOuts {
+				subSeq := anyseq.ConstSeqList(
+					c,
+					anyseq.SeparateSeqs(seqs.Output())[i:i+1],
+				)
+				singleOut := anyseq.SeparateSeqs(Map(subSeq, markov).Output())[0]
+				if !reflect.DeepEqual(subSeq, singleOut) {
+					t.Errorf("got batch out %v but single out %v", batchOut, singleOut)
+				}
+			}
+		})
+	}
+}
+
 func TestMarkovSerialize(t *testing.T) {
 	c := anyvec64.DefaultCreator{}
 	markov := NewMarkov(c, 2, 3, true)
