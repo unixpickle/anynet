@@ -103,26 +103,18 @@ func (m *Markov) Serialize() ([]byte, error) {
 func (m *Markov) funcBlock() *FuncBlock {
 	return &FuncBlock{
 		Func: func(in, state anydiff.Res, n int) (out, newState anydiff.Res) {
-			oldRows := &anydiff.Matrix{
-				Data: state,
-				Rows: m.HistorySize,
-				Cols: state.Output().Len() / m.HistorySize,
+			subInSize := in.Output().Len() / n
+			subStateSize := state.Output().Len() / n
+			var outs, states []anydiff.Res
+			for i := 0; i < n; i++ {
+				subIn := anydiff.Slice(in, i*subInSize, (i+1)*subInSize)
+				subState := anydiff.Slice(state, i*subStateSize,
+					(i+1)*subStateSize)
+				o, s := m.forward(subIn, subState)
+				outs = append(outs, o)
+				states = append(states, s)
 			}
-
-			outRows := *oldRows
-			outRows.Data = anydiff.Concat(in, oldRows.Data)
-			outRows.Rows++
-
-			stateRows := outRows
-			stateRows.Rows--
-			stateRows.Data = anydiff.Slice(outRows.Data, 0,
-				stateRows.Cols*stateRows.Rows)
-
-			if m.DepthWise {
-				return anydiff.Transpose(&outRows).Data, stateRows.Data
-			} else {
-				return outRows.Data, stateRows.Data
-			}
+			return anydiff.Concat(outs...), anydiff.Concat(states...)
 		},
 		MakeStart: func(n int) anydiff.Res {
 			var rep []anydiff.Res
@@ -131,5 +123,28 @@ func (m *Markov) funcBlock() *FuncBlock {
 			}
 			return anydiff.Concat(rep...)
 		},
+	}
+}
+
+func (m *Markov) forward(in, state anydiff.Res) (out, newState anydiff.Res) {
+	oldRows := &anydiff.Matrix{
+		Data: state,
+		Rows: m.HistorySize,
+		Cols: state.Output().Len() / m.HistorySize,
+	}
+
+	outRows := *oldRows
+	outRows.Data = anydiff.Concat(in, oldRows.Data)
+	outRows.Rows++
+
+	stateRows := outRows
+	stateRows.Rows--
+	stateRows.Data = anydiff.Slice(outRows.Data, 0,
+		stateRows.Cols*stateRows.Rows)
+
+	if m.DepthWise {
+		return anydiff.Transpose(&outRows).Data, stateRows.Data
+	} else {
+		return outRows.Data, stateRows.Data
 	}
 }
