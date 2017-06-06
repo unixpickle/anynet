@@ -5,6 +5,8 @@ import (
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/serializer"
 )
 
 const (
@@ -29,6 +31,12 @@ type Adam struct {
 	// This should be very small.
 	// If it is 0, a default is used.
 	Damping float64
+
+	// Vars is used by the marshalling routines to
+	// assign an ordering to the variables.
+	// It is only used by the MarshalBinary and
+	// UnmarshalBinary methods.
+	Vars []*anydiff.Var
 
 	firstMoment  anydiff.Grad
 	secondMoment anydiff.Grad
@@ -59,6 +67,59 @@ func (a *Adam) Transform(realGrad anydiff.Grad) anydiff.Grad {
 	}
 
 	return realGrad
+}
+
+// MarshalBinary marshals the hyperparameters and current
+// state into a binary format.
+//
+// This requires that a.Vars contains all and only the
+// variables contained in gradients passed to Transform.
+// If Transform has never been called, then MarshalBinary
+// will always succeed.
+func (a *Adam) MarshalBinary() (data []byte, err error) {
+	defer essentials.AddCtxTo("marshal Adam", &err)
+
+	moment1Data, err := marshalGradient(a.Vars, a.firstMoment)
+	if err != nil {
+		return nil, err
+	}
+	moment2Data, err := marshalGradient(a.Vars, a.secondMoment)
+	if err != nil {
+		return nil, err
+	}
+
+	return serializer.SerializeAny(
+		a.DecayRate1,
+		a.DecayRate2,
+		a.Damping,
+		moment1Data,
+		moment2Data,
+		a.iteration,
+	)
+}
+
+// UnmarshalBinary performs the inverse of MarshalBinary.
+//
+// Like MarshalBinary, this requires a.Vars to be set.
+//
+// If this fails, the old contents of the instance may
+// have been partially overwritten.
+func (a *Adam) UnmarshalBinary(data []byte) (err error) {
+	defer essentials.AddCtxTo("unmarshal Adam", &err)
+
+	var moment1Data, moment2Data []byte
+	err = serializer.DeserializeAny(data, &a.DecayRate1, &a.DecayRate2,
+		&a.Damping, &moment1Data, &moment2Data, &a.iteration)
+	if err != nil {
+		return
+	}
+
+	a.firstMoment, err = unmarshalGradient(a.Vars, moment1Data)
+	if err != nil {
+		return
+	}
+	a.secondMoment, err = unmarshalGradient(a.Vars, moment2Data)
+	return
 }
 
 func (a *Adam) updateMoments(grad anydiff.Grad) {

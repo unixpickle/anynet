@@ -1,6 +1,10 @@
 package anysgd
 
-import "github.com/unixpickle/anydiff"
+import (
+	"encoding"
+
+	"github.com/unixpickle/anydiff"
+)
 
 // A Transformer transforms gradients.
 // For example, pre-conditioning could be implemented as a
@@ -24,6 +28,14 @@ import "github.com/unixpickle/anydiff"
 // until the next time Transform is called.
 type Transformer interface {
 	Transform(g anydiff.Grad) anydiff.Grad
+}
+
+// TransformMarshaler is a Transformer with support for
+// binary marshalling and unmarshalling.
+type TransformMarshaler interface {
+	Transformer
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
 }
 
 // A Batch is an immutable list of samples.

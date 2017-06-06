@@ -6,6 +6,7 @@ import (
 
 	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/anyvec/anyvec64"
 )
 
 func TestAdamValues(t *testing.T) {
@@ -65,4 +66,15 @@ func TestAdamTraining(t *testing.T) {
 		x, y := g.current()
 		t.Errorf("bad solution: %f, %f", x, y)
 	}
+}
+
+func TestAdamMarshal(t *testing.T) {
+	c := anyvec64.DefaultCreator{}
+	a := &Adam{
+		DecayRate1: 0.3,
+		DecayRate2: 0.4,
+		Damping:    0.2,
+		Vars:       randomVars(c),
+	}
+	testMarshal(t, a, a.Vars)
 }

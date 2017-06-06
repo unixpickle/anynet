@@ -43,4 +43,5 @@ Here are some minor things I'd like to get done at some point. None of these are
    * GRU (gated recurrent units)
  * anysgd
    * Gradient clipping
-   * Marshaling for transformers (for things like Evolution Strategies)
+   * Marshalling for RMSProp
+   * Marshalling for Momentum
