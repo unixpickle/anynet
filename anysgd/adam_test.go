@@ -44,6 +44,9 @@ func TestAdamValues(t *testing.T) {
 }
 
 func TestAdamTraining(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
 	stop := newTestStopper(100000)
 	g := newTestGradienter()
 	s := &SGD{

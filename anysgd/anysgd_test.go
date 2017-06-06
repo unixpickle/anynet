@@ -129,6 +129,10 @@ func (t *testGradienter) errorMargin() float64 {
 }
 
 func TestSGD(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
 	stop := newTestStopper(400000)
 	g := newTestGradienter()
 	s := &SGD{
