@@ -2,6 +2,7 @@ package anyconv
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 
 	"github.com/unixpickle/anyvec"
@@ -88,20 +89,75 @@ func (m *Im2Row) MakeOut(c anyvec.Creator) *anyvec.Matrix {
 // The length of in must be divisible by the input tensor
 // described by m.InputWidth and others.
 func (m *Im2Row) MapAll(in anyvec.Vector, f func(idx int, m *anyvec.Matrix)) {
+	m.mapImpl(in, f, false)
+}
+
+// MapParallel is like MapAll, except that f may be called
+// multiple times concurrently and the calls are not
+// necessarily in order.
+func (m *Im2Row) MapParallel(in anyvec.Vector, f func(idx int, m *anyvec.Matrix)) {
+	m.mapImpl(in, f, true)
+}
+
+func (m *Im2Row) mapImpl(in anyvec.Vector, f func(idx int, m *anyvec.Matrix),
+	parallel bool) {
 	inSize := m.InputSize()
 	if in.Len()%inSize != 0 {
 		panic(fmt.Sprintf("input length %d not divisible by %d", in.Len(), inSize))
 	}
 
 	mapper := m.Mapper(in.Creator())
-	imageMat := m.MakeOut(in.Creator())
+	mapAndCall := func(i int, m *anyvec.Matrix) {
+		subIn := in.Slice(inSize*i, inSize*(i+1))
+		mapper.Map(subIn, m.Data)
+		f(i, m)
+	}
 
 	n := in.Len() / inSize
+	if parallel {
+		m.CallParallel(in.Creator(), n, mapAndCall)
+	} else {
+		m.CallAll(in.Creator(), n, mapAndCall)
+	}
+}
+
+// CallAll is like MapAll, except it doesn't perform the
+// mapping itself.
+// Rather, it allocates a matrix, but does not write
+// anything in particular to the matrix.
+// The matrix may contain arbitrary junk when it is passed
+// to f.
+func (m *Im2Row) CallAll(c anyvec.Creator, n int, f func(int, *anyvec.Matrix)) {
+	imageMat := m.MakeOut(c)
 	for i := 0; i < n; i++ {
-		subIn := in.Slice(inSize*i, inSize*(i+1))
-		mapper.Map(subIn, imageMat.Data)
 		f(i, imageMat)
 	}
+}
+
+// CallParallel is like MapParallel, except it doesn't
+// perform the mapping itself.
+//
+// See CallAll for details.
+func (m *Im2Row) CallParallel(c anyvec.Creator, n int, f func(int, *anyvec.Matrix)) {
+	jobs := make(chan int, n)
+	for i := 0; i < n; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			imageMat := m.MakeOut(c)
+			for i := range jobs {
+				f(i, imageMat)
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 // Mapper returns a mapper for the mapping.
